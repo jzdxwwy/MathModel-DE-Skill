@@ -1,9 +1,6 @@
-"""Minimal, reproducible regression baseline for CUMCM E-type problems.
-
-Usage: adapt DATA_PATH, TARGET, FEATURES and run locally.
-The script reports MAE/RMSE/R2 and saves predictions plus a manifest.
-"""
+"""Minimal, reproducible regression baseline for CUMCM E-type problems."""
 from pathlib import Path
+import hashlib
 import json
 import platform
 import sys
@@ -19,8 +16,19 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 DATA_PATH = Path("data/input.csv")
 TARGET = "target"
-FEATURES = []  # empty => use all columns except target
+FEATURES = []
 SEED = 20260913
+PROBLEM = "DE-template"
+QUESTION = "Q1"
+MODEL = "Ridge-baseline"
+
+
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def main():
@@ -41,8 +49,24 @@ def main():
     pred = model.predict(Xte)
     metrics = {"MAE": float(mean_absolute_error(yte, pred)), "RMSE": float(np.sqrt(mean_squared_error(yte, pred))), "R2": float(r2_score(yte, pred))}
     out = Path("results"); out.mkdir(exist_ok=True)
-    pd.DataFrame({"y_true": yte.to_numpy(), "y_pred": pred}).to_csv(out / "baseline_predictions.csv", index=False)
-    manifest = {"template": "baseline_regression", "seed": SEED, "target": TARGET, "features": features, "metrics": metrics, "python": sys.version, "platform": platform.platform(), "status": "RUN_COMPLETE"}
+    pred_path = out / "baseline_predictions.csv"
+    pd.DataFrame({"y_true": yte.to_numpy(), "y_pred": pred}).to_csv(pred_path, index=False)
+    manifest = {
+        "run_id": "baseline-regression",
+        "problem": PROBLEM,
+        "question": QUESTION,
+        "input_hash": sha256_file(DATA_PATH),
+        "python": sys.version,
+        "packages": {"numpy": np.__version__, "pandas": pd.__version__},
+        "seed": SEED,
+        "model": MODEL,
+        "parameters": {"alpha": 1.0, "test_size": 0.2},
+        "command": "python 05_python/templates/baseline_regression.py",
+        "outputs": [str(pred_path), str(out / "run_manifest.json")],
+        "status": "RUN_COMPLETE",
+        "notes": json.dumps({"metrics": metrics}, ensure_ascii=False),
+        "platform": platform.platform(),
+    }
     (out / "run_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(metrics, ensure_ascii=False, indent=2))
 

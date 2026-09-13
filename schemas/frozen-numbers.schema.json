@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Frozen Numbers",
+  "type": "object",
+  "required": ["version", "source_runs", "numbers"],
+  "properties": {
+    "version": {"type": "string"},
+    "source_runs": {"type": "array", "items": {"type": "string"}},
+    "numbers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "value", "unit", "source"],
+        "properties": {
+          "name": {"type": "string"},
+          "value": {},
+          "unit": {"type": "string"},
+          "source": {"type": "string"},
+          "paper_location": {"type": "string"},
+          "status": {"enum": ["FROZEN", "SUPERSEDED"]}
+        }
+      }
+    }
+  }
+}

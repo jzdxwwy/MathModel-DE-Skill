@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MathModel-DE Run Manifest",
+  "type": "object",
+  "required": ["run_id", "problem", "question", "model", "status"],
+  "properties": {
+    "run_id": {"type": "string"},
+    "problem": {"type": "string"},
+    "question": {"type": "string"},
+    "input_hash": {"type": "string"},
+    "python": {"type": "string"},
+    "packages": {"type": "object", "additionalProperties": {"type": "string"}},
+    "seed": {"type": ["integer", "null"]},
+    "model": {"type": "string"},
+    "parameters": {"type": "object"},
+    "command": {"type": "string"},
+    "outputs": {"type": "array", "items": {"type": "string"}},
+    "status": {"enum": ["RUNNING", "RUN_COMPLETE", "FAILED", "FINAL", "SUPERSEDED"]},
+    "notes": {"type": "string"}
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jzdxwwy/MathModel-DE-Skill/blob/main/artifacts/schemas/model-plan.schema.json",
+  "title": "ModelPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifact_type", "schema_version", "status", "task_models"],
+  "properties": {
+    "artifact_type": {"const": "ModelPlan"},
+    "schema_version": {"type": "string"},
+    "status": {"enum": ["DRAFT", "VALIDATED", "FROZEN", "SUPERSEDED"]},
+    "task_models": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["task_id", "candidates", "selection"], "properties": {
+      "task_id": {"type": "string"},
+      "candidates": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["model_id", "name", "fit_rationale"], "properties": {"model_id": {"type": "string"}, "name": {"type": "string"}, "fit_rationale": {"type": "string"}, "assumptions": {"type": "array", "items": {"type": "string"}}, "limitations": {"type": "array", "items": {"type": "string"}}, "score": {"type": "number"}}}},
+      "selection": {"type": "object", "additionalProperties": false, "required": ["model_id", "reason"], "properties": {"model_id": {"type": "string"}, "reason": {"type": "string"}, "alternatives_rejected": {"type": "array", "items": {"type": "string"}}}}
+    }},
+    "selection_principles": {"type": "array", "items": {"type": "string"}},
+    "d_or_e_prior": {"enum": ["D", "E", "D+E", "NONE"]}
+  }
+}

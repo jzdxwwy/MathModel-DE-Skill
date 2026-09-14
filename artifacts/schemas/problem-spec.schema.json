@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jzdxwwy/MathModel-DE-Skill/blob/main/artifacts/schemas/problem-spec.schema.json",
+  "title": "ProblemSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifact_type", "schema_version", "status", "problem_id", "source", "tasks"],
+  "properties": {
+    "artifact_type": {"const": "ProblemSpec"},
+    "schema_version": {"type": "string"},
+    "status": {"enum": ["DRAFT", "VALIDATED", "FROZEN", "SUPERSEDED"]},
+    "problem_id": {"type": "string", "minLength": 1},
+    "source": {"type": "object", "additionalProperties": false, "required": ["title", "mode"], "properties": {
+      "title": {"type": "string"},
+      "mode": {"enum": ["skill_development", "benchmark", "problem_solving"]},
+      "year": {"type": "integer", "minimum": 0},
+      "source_ref": {"type": "string"}
+    }},
+    "problem_type": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "tasks": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["task_id", "statement"], "properties": {
+      "task_id": {"type": "string"},
+      "statement": {"type": "string"},
+      "deliverables": {"type": "array", "items": {"type": "string"}}
+    }}},
+    "constraints": {"type": "array", "items": {"type": "string"}},
+    "data_assets": {"type": "array", "items": {"type": "string"}},
+    "notes": {"type": "string"}
+  }
+}

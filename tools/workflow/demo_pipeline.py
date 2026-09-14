@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 
-from engine import Stage, StageContext, WorkflowEngine, require_files
+from .engine import Stage, StageContext, WorkflowEngine, require_files
 
 
 def write_json(ctx: StageContext, name: str, relative: str, payload: dict) -> None:

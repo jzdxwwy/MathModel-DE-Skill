@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jzdxwwy/MathModel-DE-Skill/blob/main/artifacts/schemas/traceability.schema.json",
+  "title": "Traceability",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifact_type", "schema_version", "status", "artifact_id", "lineage"],
+  "properties": {
+    "artifact_type": {"const": "Traceability"},
+    "schema_version": {"type": "string"},
+    "status": {"enum": ["DRAFT", "VALIDATED", "FROZEN", "SUPERSEDED"]},
+    "artifact_id": {"type": "string"},
+    "lineage": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["relation", "artifact_ref"], "properties": {"relation": {"enum": ["derived_from", "validated_by", "implemented_by", "visualized_by", "used_by", "compared_with"]}, "artifact_ref": {"type": "string"}, "content_hash": {"type": "string"}, "version": {"type": "string"}}}},
+    "input_refs": {"type": "array", "items": {"type": "string"}},
+    "model_refs": {"type": "array", "items": {"type": "string"}},
+    "code_refs": {"type": "array", "items": {"type": "string"}},
+    "result_refs": {"type": "array", "items": {"type": "string"}},
+    "verification_refs": {"type": "array", "items": {"type": "string"}}
+  }
+}

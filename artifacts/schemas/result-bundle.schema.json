@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jzdxwwy/MathModel-DE-Skill/blob/main/artifacts/schemas/result-bundle.schema.json",
+  "title": "ResultBundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifact_type", "schema_version", "status", "run_id", "model_id", "outputs", "provenance"],
+  "properties": {
+    "artifact_type": {"const": "ResultBundle"},
+    "schema_version": {"type": "string"},
+    "status": {"enum": ["DRAFT", "VALIDATED", "FROZEN", "SUPERSEDED"]},
+    "run_id": {"type": "string"},
+    "model_id": {"type": "string"},
+    "outputs": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["name", "value", "unit"], "properties": {"name": {"type": "string"}, "value": {}, "unit": {"type": "string"}, "uncertainty": {"type": "string"}, "source_ref": {"type": "string"}}}},
+    "metrics": {"type": "object", "additionalProperties": true},
+    "artifacts": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["kind", "path"], "properties": {"kind": {"type": "string"}, "path": {"type": "string"}, "description": {"type": "string"}}}},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "provenance": {"type": "object", "additionalProperties": false, "required": ["input_refs", "code_ref"], "properties": {"input_refs": {"type": "array", "items": {"type": "string"}}, "code_ref": {"type": "string"}, "environment": {"type": "string"}, "created_at": {"type": "string"}}}
+  }
+}

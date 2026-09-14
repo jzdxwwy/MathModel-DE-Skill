@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jzdxwwy/MathModel-DE-Skill/blob/main/artifacts/schemas/model-comparison.schema.json",
+  "title": "ModelComparison",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifact_type", "schema_version", "status", "task_id", "candidates", "decision"],
+  "properties": {
+    "artifact_type": {"const": "ModelComparison"},
+    "schema_version": {"type": "string"},
+    "status": {"enum": ["DRAFT", "VALIDATED", "FROZEN", "SUPERSEDED"]},
+    "task_id": {"type": "string"},
+    "candidates": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["model_id", "name", "method", "evidence"], "properties": {
+      "model_id": {"type": "string"},
+      "name": {"type": "string"},
+      "method": {"type": "string"},
+      "evidence": {"type": "array", "items": {"type": "string"}},
+      "metrics": {"type": "object", "additionalProperties": true},
+      "rank": {"type": "integer", "minimum": 1}
+    }}},
+    "comparison_protocol": {"type": "object", "additionalProperties": false, "required": ["same_data", "same_metric_basis"], "properties": {"same_data": {"type": "boolean"}, "same_metric_basis": {"type": "boolean"}, "cross_validation": {"type": "boolean"}, "holdout": {"type": "boolean"}, "bootstrap_or_resampling": {"type": "boolean"}}},
+    "decision": {"type": "object", "additionalProperties": false, "required": ["selected_model_id", "reason"], "properties": {"selected_model_id": {"type": "string"}, "reason": {"type": "string"}, "tradeoffs": {"type": "array", "items": {"type": "string"}}}},
+    "sensitivity_summary": {"type": "string"}
+  }
+}

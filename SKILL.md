@@ -1,123 +1,60 @@
 # MathModel-DE-Skill Master Skill
 
 > 面向 CUMCM D/E 题的可复用数学建模 Workflow Skill。
->
-> 本文件是 **Master Skill / Orchestrator**，负责调度工作流；具体知识和工具由 Stage Skills、Knowledge、Tools 提供。
 
 ## 1. 核心定位
+`题目/附件 → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Compute → ResultBundle → VerificationReport → PaperEvidence → 论文`
 
-本 Skill 不把数学建模理解为“选择一个模型并写 Python”，而是建立一条可追踪、可验证、可回归测试的工作流：
+本 Skill 默认工作模式是 **Skill Development**；历史题用于能力缺口、Benchmark、Regression，不直接定义主流程。
 
-```text
-题目/附件 → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Compute → ResultBundle → VerificationReport → PaperEvidence → 论文
-```
+## 2. 标准阶段
+- 00 Start：摄取题目与附件 → ProblemSpec
+- 01 Analysis：任务拆分 → ProblemMap
+- 02 Data：数据体检与语义补充 → DataProfile
+- 03 Modeling：确定性模型选择 → ModelPlan/ModelSpec/ModelComparison
+- 04 Compute：ToolDispatch → 数值执行 → RunManifest/ResultBundle
+- 05 Visualization：真实结果 → 图表/PaperEvidence
+- 06 Verification：公式、单位、可行性、误差、泄漏、敏感性、稳健性、复现性
+- 07 Writing：只使用已验证证据写论文
 
-阶段之间通过 Artifact Contract 传递状态。详见 `00_governance/ARCHITECTURE_V2.md`、`artifacts/ARTIFACT_CONTRACTS.md`。
+## 3. D/E 定位
+D/E 是先验，不是固定模板。先识别 prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision 等任务类型，再结合 D/E 知识缩小模型空间。
 
-## 2. Master Skill 的职责
+## 4. Runtime / Gate
+`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Verification`
 
-1. 判断当前工作模式；2. 创建项目计划与任务清单；3. 识别当前阶段；4. 调用对应 Stage Skill；5. 检查上游 Artifact；6. 检查阶段 Gate；7. 控制阶段流转；8. 维护运行记录和结果追溯；9. 将已验证证据交给 Writing Stage。
+Gate：`Analysis → Data → Model → Binding → Compute → Verification → Writing → Final`。任何关键 Gate 未通过不得标记完成。
 
-## 3. 三种工作模式
+## 5. V0.8
+确定性模型选择器按七维评分选择模型：fit 25、data 15、constraints 15、interpretability 15、verifiability 15、robustness 10、cost 5。LLM 不能覆盖选择结果或任意发明工具。
 
-### A. Skill Development（默认）
-历史题/案例 → 能力缺口 → 通用抽象 → Skill/Knowledge/Tool → Benchmark → Test → Regression。
+## 6. V0.9-B
+已建立显式 `data_binding`、统一 Template Adapter、ToolExecutionEngine 和正式 ResultBundle。当前真实接通线性回归、树模型比较、逻辑回归分类；缺少绑定或暂不支持时 `INPUT_BLOCKED`。
 
-### B. Benchmark / Regression Test
-历史题是测试源，不是架构定义源。
+## 7. V0.9-C：数学输入契约与数值适配器
+V0.9-C 把“Python 模板存在”推进为“数学输入可计算”：
 
-### C. Problem Solving
-只有用户明确要求解某道题时才进入；仍必须遵守 Artifact、验证和追溯规则。
+### 已建立的数学输入契约
+- `time_series_baseline`：`data_path + time_col + target`，可选 features / horizon / min_train / seed
+- `shortest_path`：`data_path + source + target`，可选 directed；边表必须有 `u/v/weight`
+- `mechanism_simulation`：`data_path + entity_col + time_col + node_col`，可选最大时间间隔
+- `optimization`：`objective_expression + variables + bounds`，可选约束与初值
+- `sensitivity`：`objective_expression + base + grid`
+- `monte_carlo`：`event_expression + variables + distributions + n + seed`
 
-## 4. 标准 Stage Workflow
+### 已接入 Tool Registry
+- 时间序列 rolling-origin Ridge
+- Dijkstra 最短路径
+- 事件流/轨迹重构
+- 显式数学表达式优化 SLSQP
+- 显式数学表达式 OAT 敏感性分析
+- 显式数学表达式 Monte Carlo
 
-- **00 Start**：题目与附件摄取，输出 ProblemSpec。
-- **01 Analysis**：问题拆分、任务结构、变量/输入/输出/约束，输出 ProblemMap。
-- **02 Data**：数据体检、schema/单位、缺失/重复/异常、EDA 与预处理，输出 DataProfile。
-- **03 Modeling**：候选模型、baseline、比较、假设/方程/约束/验证方案，输出 ModelPlan/ModelSpec。
-- **04 Compute**：编码、求解/预测/仿真、运行记录，输出 RunManifest/ResultBundle。
-- **05 Visualization**：从真实结果生成图表和 PaperEvidence。
-- **06 Verification**：公式、单位、可行性、误差、泄漏、敏感性、稳健性、复现性。
-- **07 Writing**：基于已验证证据形成论文，不自行发明核心数字。
+### 关键安全规则
+LLM 只能提供结构化 binding，不能提交 Python。数学表达式仅允许声明变量和白名单函数；禁止 import、lambda、语句和任意代码。没有完整数学输入契约就 `INPUT_BLOCKED`。
 
-## 5. Gate 原则
+## 8. 当前测试状态
+已新增 V0.9-C 数学输入契约测试，但当前环境未实际运行 pytest，因此不得声称测试通过。
 
-```text
-Analysis Gate → Data Gate → Model Gate → Compute Gate → Verification Gate → Writing Gate → Final Gate
-```
-任何关键 Gate 未通过，不得把项目标记为完成。最终质量要求由 `08_verification/Final_Gate.md` 负责。
-
-## 6. D/E 的定位
-
-D/E 不是两条固定主流程，而是领域先验。首先判断 prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision 等任务类型，再结合 D/E 先验缩小候选模型空间。禁止因为题目被标记为 D/E 就直接套模型清单。
-
-## 7. 模型选择总原则
-
-1. 先理解问题，再选模型；2. 优先可解释、可验证 baseline；3. 复杂模型必须有升级理由；4. 数据不足、约束冲突、泄漏或无法验证时不得强行使用复杂模型；5. 候选模型必须有选择依据；6. 核心模型必须说明适用条件、假设、变量、参数来源、求解和验证。
-
-## 8. 可追溯与真实性
-
-不得虚构数据、参数、实验结果、文献或竞赛结论；核心数字追溯到输入、Artifact 或 RunManifest；图表必须来自真实计算；不得把相关性写成因果关系；不得为了增加模型数量而堆叠无意义算法。
-
-## 9. 工具调用原则
-
-Stage Skill 判断能力需求 → 选择 Knowledge/Python/Visualization/Document Tool → 生成或更新 Artifact。新增 Python 模板必须有通用输入输出、适用问题、调用 Stage、验证方式及测试。
-
-## 10. 历史题与 Benchmark
-
-2024D/E、2025D/E 等用于能力缺口、benchmark、regression、泛化测试和案例知识提取，不得因单题方法而硬编码主流程。
-
-## 11. Runtime 执行层
-
-当前运行链为：
-
-```text
-External Host / CLI
- ↓ HostRequest
-V0.7 Input Boundary
- ↓ Problem + Attachment Ingestion
-Deterministic Ingestion Manifest + DataProfile
- ↓ RealLLMHostAdapter / ModelAdapter
-RuntimeOrchestrator
- ↓
-00-start → ProblemSpec → Gate
- ↓
-01-analysis → ProblemMap → task_id Gate
- ↓
-02-data → DataProfile → deterministic-facts Gate
- ↓
-03-modeling → ModelPlan/ModelSpec/ModelComparison
- ↓
-04-compute → ToolDispatchPlan → ToolRegistry → Python Template → ResultBundle
-```
-
-V0.7-B 规则：**LLM 负责语义提议，确定性摄取负责事实，Schema/Gate 负责最终接受。** DataProfile 的路径、大小、规模、schema、确定性质量检查不能由 LLM 覆写。
-
-## 12. V0.8 自动模型选择
-
-V0.8 已落地：
-
-1. `tools/modeling/model_catalog.py`：封闭的可复用模型族目录；
-2. `tools/modeling/model_selector.py`：按 ProblemMap task_id 分类任务，先硬约束淘汰，再按七维权重选择；
-3. 七维权重：fit 25、data 15、constraints 15、interpretability 15、verifiability 15、robustness 10、cost 5；
-4. `tools/modeling/model_plan_builder.py`：生成 ModelPlan 与逐任务 ModelSpec；
-5. `tools/runtime/tool_dispatch.py`：将模型映射到封闭 Tool Registry 名称；
-6. `artifacts/schemas/tool-dispatch.schema.json`：ToolDispatchPlan Schema；
-7. `tools/runtime/real_host.py`：在 V0.7-B 三个 Artifact 后进入 03-modeling 与 04-compute；
-8. `tests/modeling/test_model_selector.py`、`tests/runtime/test_v08_dispatch.py`：V0.8 离线契约测试。
-
-V0.8 的选择分数**不是拟合性能指标**。真实误差、交叉验证、优化求解、仿真结果和 ResultBundle 留给 V0.9。LLM 可以解释和细化，但不能覆盖确定性选择结果，也不能任意发明工具名。
-
-## 13. V0.9-B 数值执行
-
-V0.9-B 已把执行边界推进到真实 Python 模板：
-
-1. `tools/runtime/template_adapter.py`：统一数据绑定、格式转换、模板加载和 fail-closed 输入检查；
-2. `tools/runtime/v09_tools.py`：将已支持模板注册到 ToolRegistry；
-3. 当前真实接通：`linear_regression`、`tree_ensemble_regression`、`logistic_classification`；
-4. `ModelSpec.data_binding`：显式声明 `data_path/target/features` 及适用的随机种子、验证参数；
-5. `ToolDispatchPlan` 携带 binding，`ToolExecutionEngine` 执行后生成符合 `result-bundle.schema.json` 的 `ResultBundle`；
-6. 缺少绑定或暂不支持的模型进入 `INPUT_BLOCKED`，不得猜测数据或伪造结果；
-7. 新增 `tests/runtime/test_v09_b_template_adapter.py`、`tests/runtime/test_v09_b_execution_engine.py` 和固定回归数据。
-
-**注意：当前环境没有执行这些新增测试，因此不能声称 V0.9-B 测试通过。** 下一步是 V0.9-C：逐个建立时间序列、优化、网络、Monte Carlo、敏感性、轨迹重构等工具的独立数学输入契约，并把验证指标接入 Verification Stage。
+## 9. 下一阶段
+V0.9-D 应把 **ModelSpec → 自动 binding 生成 → DataProfile 对照 → Binding Gate → Compute** 完整闭环，并建立 D/E 历史题回归夹具，验证同一 Skill 能否从真实附件自动得到可执行输入，而不是要求用户手工填写 binding。

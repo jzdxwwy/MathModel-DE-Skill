@@ -1,13 +1,11 @@
 """V0.9 execution engine: approved dispatch -> auditable ResultBundle."""
 from __future__ import annotations
-
 import hashlib
 import json
 import sys
 import uuid
 from pathlib import Path
 from typing import Any
-
 from .template_adapter import InputBlocked
 from .tool_registry import ToolRegistry
 
@@ -31,18 +29,22 @@ class ToolExecutionEngine:
         run_dir.mkdir(parents=True, exist_ok=True)
         model_id = item["model_id"]
         tool_name = item["tool"]
+        binding = item.get("binding") or item.get("parameters") or {}
         manifest = {
             "run_id": run_id, "problem": problem, "question": item["task_id"],
             "model": model_id, "parameters": item.get("parameters", {}),
-            "seed": item.get("seed"), "python": sys.version.split()[0],
+            "binding": binding, "seed": item.get("seed"), "python": sys.version.split()[0],
             "packages": {}, "command": f"ToolRegistry.invoke({tool_name!r})",
-            "outputs": [], "status": "RUNNING",
-            "notes": "V0.9-B; input bindings are explicit and upstream facts remain traceable.",
+            "outputs": [], "status": "RUNNING", "notes": "V0.9-D; binding gate is authoritative.",
         }
         _write_json(run_dir / "run-manifest.json", manifest)
+        if item.get("status") == "BLOCKED" or binding.get("binding_status") == "BLOCKED":
+            manifest["status"] = "INPUT_BLOCKED"
+            manifest["notes"] = f"Binding gate blocked: {binding.get('reason', 'missing or ambiguous input binding')}"
+            _write_json(run_dir / "run-manifest.json", manifest)
+            return manifest
         try:
             self.registry.get(tool_name)
-            binding = item.get("binding") or item.get("parameters") or {}
             payload = {
                 "task_id": item["task_id"], "model_id": model_id,
                 "project_dir": str(project_dir), "run_dir": str(run_dir),
@@ -58,13 +60,8 @@ class ToolExecutionEngine:
                 "artifact_type": "ResultBundle", "schema_version": "0.9",
                 "status": "VALIDATED", "run_id": run_id, "model_id": model_id,
                 "outputs": outputs, "metrics": result_payload.get("metrics", {}),
-                "artifacts": artifacts,
-                "warnings": [],
-                "provenance": {
-                    "input_refs": item.get("inputs", []),
-                    "code_ref": tool_name,
-                    "environment": sys.version.split()[0],
-                },
+                "artifacts": artifacts, "warnings": [],
+                "provenance": {"input_refs": item.get("inputs", []), "code_ref": tool_name, "environment": sys.version.split()[0]},
             }
             _write_json(result_path, bundle)
             manifest["outputs"] = [str(result_path)]

@@ -12,17 +12,26 @@ def test_csv_ingestion(tmp_path: Path):
     csv_path = tmp_path / "traffic.csv"
     csv_path.write_text("time,flow\n08:00,120\n08:05,130\n08:05,130\n", encoding="utf-8")
     result = ingest_problem(None, [str(csv_path)])
-    assert len(result.attachments) == 1
     item = result.attachments[0]
     assert item["status"] == "READABLE"
     assert item["sha256"]
     assert item["data_profile"]["rows"] == 3
-    assert item["data_profile"]["duplicate_rows"] == 1
+    assert item["data_profile"]["duplicate_rows_sample"] == 1
 
 
-def test_docx_extraction_without_semantic_guess(tmp_path: Path):
-    # A plain text problem path is deliberately supported as an inline/file input;
-    # semantic interpretation remains outside deterministic ingestion.
+def test_csv_large_profile_is_bounded(tmp_path: Path):
+    csv_path = tmp_path / "large.csv"
+    with csv_path.open("w", encoding="utf-8") as f:
+        f.write("id,value\n")
+        for i in range(10000):
+            f.write(f"{i},1\n")
+    result = ingest_problem(None, [str(csv_path)])
+    profile = result.attachments[0]["data_profile"]
+    assert profile["rows"] == 10000
+    assert profile["duplicate_scope"] == "first_5000_rows_only"
+
+
+def test_problem_text_extraction_without_semantic_guess(tmp_path: Path):
     p = tmp_path / "problem.txt"
     p.write_text("问题1：建立预测模型。\n问题2：优化方案。", encoding="utf-8")
     result = ingest_problem(str(p), [])

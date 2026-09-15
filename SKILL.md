@@ -88,7 +88,7 @@ RuntimeOrchestrator
  ↓
 03-modeling → ModelPlan/ModelSpec/ModelComparison
  ↓
-04-compute → ToolDispatchPlan
+04-compute → ToolDispatchPlan → ToolRegistry → Python Template → ResultBundle
 ```
 
 V0.7-B 规则：**LLM 负责语义提议，确定性摄取负责事实，Schema/Gate 负责最终接受。** DataProfile 的路径、大小、规模、schema、确定性质量检查不能由 LLM 覆写。
@@ -103,13 +103,21 @@ V0.8 已落地：
 4. `tools/modeling/model_plan_builder.py`：生成 ModelPlan 与逐任务 ModelSpec；
 5. `tools/runtime/tool_dispatch.py`：将模型映射到封闭 Tool Registry 名称；
 6. `artifacts/schemas/tool-dispatch.schema.json`：ToolDispatchPlan Schema；
-7. `tools/runtime/real_host.py`：在 V0.7-B 三个 Artifact 后进入 03-modeling 与 04-compute dispatch planning；
+7. `tools/runtime/real_host.py`：在 V0.7-B 三个 Artifact 后进入 03-modeling 与 04-compute；
 8. `tests/modeling/test_model_selector.py`、`tests/runtime/test_v08_dispatch.py`：V0.8 离线契约测试。
 
 V0.8 的选择分数**不是拟合性能指标**。真实误差、交叉验证、优化求解、仿真结果和 ResultBundle 留给 V0.9。LLM 可以解释和细化，但不能覆盖确定性选择结果，也不能任意发明工具名。
 
-## 13. 当前实现状态
+## 13. V0.9-B 数值执行
 
-已建立 Master/Stage、Artifact Contract、JSON Schema、Gate、Traceability、Workflow Engine、E2E Demo、V0.6 Runtime、V0.6-C Real LLM Host、V0.7 真实题目/附件摄取、V0.7-B 结构化 Artifact，以及 **V0.8 自动模型选择 + ModelPlan/ModelSpec/ModelComparison + ToolDispatchPlan**。
+V0.9-B 已把执行边界推进到真实 Python 模板：
 
-当前环境未执行新增测试，因此不能声称测试已通过。下一阶段是 **V0.9：真正执行 ToolDispatch，生成 RunManifest/ResultBundle，并进入 Verification Gate。**
+1. `tools/runtime/template_adapter.py`：统一数据绑定、格式转换、模板加载和 fail-closed 输入检查；
+2. `tools/runtime/v09_tools.py`：将已支持模板注册到 ToolRegistry；
+3. 当前真实接通：`linear_regression`、`tree_ensemble_regression`、`logistic_classification`；
+4. `ModelSpec.data_binding`：显式声明 `data_path/target/features` 及适用的随机种子、验证参数；
+5. `ToolDispatchPlan` 携带 binding，`ToolExecutionEngine` 执行后生成符合 `result-bundle.schema.json` 的 `ResultBundle`；
+6. 缺少绑定或暂不支持的模型进入 `INPUT_BLOCKED`，不得猜测数据或伪造结果；
+7. 新增 `tests/runtime/test_v09_b_template_adapter.py`、`tests/runtime/test_v09_b_execution_engine.py` 和固定回归数据。
+
+**注意：当前环境没有执行这些新增测试，因此不能声称 V0.9-B 测试通过。** 下一步是 V0.9-C：逐个建立时间序列、优化、网络、Monte Carlo、敏感性、轨迹重构等工具的独立数学输入契约，并把验证指标接入 Verification Stage。

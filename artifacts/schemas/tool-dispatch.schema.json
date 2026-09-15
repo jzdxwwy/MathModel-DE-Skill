@@ -1,15 +1,1 @@
-{
-  "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "$id":"https://github.com/jzdxwwy/MathModel-DE-Skill/blob/main/artifacts/schemas/tool-dispatch.schema.json",
-  "title":"ToolDispatchPlan","type":"object","additionalProperties":false,
-  "required":["artifact_type","schema_version","status","dispatches"],
-  "properties":{
-    "artifact_type":{"const":"ToolDispatchPlan"},
-    "schema_version":{"type":"string"},
-    "status":{"enum":["DRAFT","VALIDATED","FROZEN","SUPERSEDED"]},
-    "dispatches":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["task_id","model_id","tool","inputs","outputs","status"],"properties":{
-      "task_id":{"type":"string"},"model_id":{"type":"string"},"tool":{"type":"string"},"inputs":{"type":"array","items":{"type":"string"}},"outputs":{"type":"array","items":{"type":"string"}},"status":{"enum":["PLANNED","READY","EXECUTED","BLOCKED"]},
-      "binding":{"type":"object","additionalProperties":false,"properties":{"data_path":{"type":"string"},"target":{"type":"string"},"features":{"type":"array","items":{"type":"string"}},"seed":{"type":"integer"},"test_size":{"type":"number","exclusiveMinimum":0,"exclusiveMaximum":1},"n_splits":{"type":"integer","minimum":2}}}
-    }}}
-  }
-}
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://github.com/jzdxwwy/MathModel-DE-Skill/blob/main/artifacts/schemas/tool-dispatch.schema.json","title":"ToolDispatchPlan","type":"object","additionalProperties":false,"required":["artifact_type","schema_version","status","dispatches"],"properties":{"artifact_type":{"const":"ToolDispatchPlan"},"schema_version":{"type":"string"},"status":{"enum":["DRAFT","VALIDATED","FROZEN","SUPERSEDED"]},"dispatches":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["task_id","model_id","tool","inputs","outputs","status"],"properties":{"task_id":{"type":"string"},"model_id":{"type":"string"},"tool":{"type":"string"},"inputs":{"type":"array","items":{"type":"string"}},"outputs":{"type":"array","items":{"type":"string"}},"status":{"enum":["PLANNED","READY","EXECUTED","BLOCKED"]},"binding":{"type":"object","additionalProperties":true}}}}}}

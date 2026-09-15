@@ -201,7 +201,7 @@ Stage Skill
 
 ## 11. Runtime 执行层
 
-Master Skill 已具备 V0.6-C 的模型可执行运行时边界，并在 V0.7 接入真实题目/附件摄取：
+Master Skill 已具备 V0.6-C 的模型可执行运行时边界，并在 V0.7 接入真实题目/附件摄取，在 V0.7-B 将 LLM 输出提升为受 Schema 与跨 Artifact Gate 约束的结构化 Artifact：
 
 ```text
 External Host / CLI
@@ -210,7 +210,7 @@ V0.7 Input Boundary
         ↓
 Problem + Attachment Ingestion
         ↓
-Ingestion Manifest + DataProfile
+Deterministic Ingestion Manifest + DataProfile
         ↓
 RealLLMHostAdapter
         ↓ ModelAdapter
@@ -218,7 +218,11 @@ OpenAI-compatible LLM endpoint
         ↓ ModelResponse
 RuntimeOrchestrator
         ↓
-TaskContext + Stage Skills + Tools + Gates
+00-start → ProblemSpec → Schema Gate
+        ↓
+01-analysis → ProblemMap → task_id Gate
+        ↓
+02-data → DataProfile → deterministic-facts Gate
         ↓
 Artifacts
 ```
@@ -229,16 +233,27 @@ Artifacts
 - `tools/ingestion/ingest.py`：题目与附件目录递归摄取；
 - `tools/ingestion/data_profile.py`：确定性 `DataProfile` 草稿；
 - `tools/runtime/input_boundary.py`：将摄取结果接入 Runtime；
-- `tools/runtime/real_host.py`：真实 LLM Host 消费摄取后的结构化输入；
+- `tools/runtime/artifact_builder.py`：ProblemSpec/ProblemMap/DataProfile 的标准化、JSON Schema 校验、跨 Artifact 检查及持久化；
+- `tools/runtime/real_host.py`：真实 LLM Host 消费摄取后的结构化输入并生成三个前端 Artifact；
 - `tools/runtime/model_adapter.py`：Provider-neutral ModelAdapter；
 - `tools/runtime/providers/openai_compatible.py`：标准库 HTTP 的 OpenAI-compatible 适配器；
 - `tools/runtime/entrypoint.py`：`--host demo|real`；
 - `tools/runtime/orchestrator.py`：持久化每阶段实际模型输出。
 
-V0.7 的边界是**真实题目与附件已经可以被确定性摄取并交给 LLM**，但还没有声称模型已经自动完成全部 `ProblemSpec`/`ProblemMap` 语义构建、计算求解、独立验证和论文生成。特别是扫描 PDF 的 OCR/视觉摄取仍是后续能力。
+V0.7-B 的关键规则是：**LLM 负责语义提议，确定性摄取负责事实；Schema/Gate 负责最终接受。** 特别是 DataProfile 中的文件路径、文件大小、行列规模、schema、确定性质量检查结果不能由 LLM 覆写；LLM 只能补充语义风险和判断。
+
+当前仍未声称模型已经自动完成全部模型选择、计算求解、独立验证和论文生成。扫描 PDF 的 OCR/视觉摄取、复杂附件语义解析也仍是后续能力。
 
 ## 12. 当前实现状态
 
-v2 已建立 Master/Stage 架构、Artifact Contract、JSON Schema、Gate、Traceability、Workflow Engine、E2E Demo、V0.6 Model-Executable Runtime、V0.6-C Real LLM Host，以及 V0.7 真实题目与附件摄取层。
+v2 已建立 Master/Stage 架构、Artifact Contract、JSON Schema、Gate、Traceability、Workflow Engine、E2E Demo、V0.6 Model-Executable Runtime、V0.6-C Real LLM Host、V0.7 真实题目与附件摄取层，以及 V0.7-B 结构化 Artifact 生成与门禁。
 
-下一阶段优先推进 **V0.7-B：让 Stage 00/01/02 的 LLM 输出真正生成并校验 `ProblemSpec`、`ProblemMap`、`DataProfile` Artifact**；随后再进入 V0.8 的自动模型选择、Tool Dispatch 与真实计算。
+V0.7-B 已落地：
+
+1. Stage 00 生成并校验 `artifacts/problem-spec.json`；
+2. Stage 01 生成并校验 `artifacts/problem-map.json`，并要求任务 ID 与 ProblemSpec 一致；
+3. Stage 02 以确定性 DataProfile 为事实底座，合并 LLM 语义风险并校验 `artifacts/data-profile.json`；
+4. 原始 LLM 输出继续保存在 `runtime/00-start.json`、`runtime/01-analysis.json`、`runtime/02-data.json`，便于审计；
+5. `tests/runtime/test_v07b_artifacts.py` 提供离线回归测试，但当前环境尚未执行测试。
+
+下一阶段进入 **V0.8：自动模型选择 + Tool Dispatch + ModelPlan/ModelSpec 生成**，让 ProblemMap/DataProfile 真正驱动建模模型候选、比较、计算工具选择。

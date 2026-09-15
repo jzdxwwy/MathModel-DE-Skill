@@ -34,6 +34,8 @@ class RealLLMHostAdapter:
             problem_input=ingested,
             metadata={"host": "real-llm", "llm": self.config.safe_dict(), **request.metadata},
         )
+        for name, path in ingested.get("artifact_paths", {}).items():
+            ctx.register_artifact(f"input:{name}", Path(path))
         runtime = RuntimeOrchestrator(repo_root=self.repo_root, model=self.model)
 
         def persist_model_output(stage_name: str):

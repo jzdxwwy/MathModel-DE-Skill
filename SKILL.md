@@ -1,7 +1,7 @@
 # MathModel-DE-Skill Master Skill
 
 > 面向 CUMCM D/E 题的可复用数学建模 Workflow Skill。
-> 
+>
 > 本文件是 **Master Skill / Orchestrator**，负责调度工作流；具体知识和工具由 Stage Skills、Knowledge、Tools 提供。
 
 ## 1. 核心定位
@@ -75,12 +75,7 @@ Master Skill **不承担全部模型知识**，也不应该直接堆叠 Python �
 
 输出：`ProblemSpec`、项目计划、todo。
 
-任务：
-
-- 确认工作模式；
-- 读取题目与附件；
-- 区分显式要求与待推断信息；
-- 建立问题编号。
+任务：确认工作模式、读取题目与附件、区分显式要求与待推断信息、建立问题编号。
 
 ### Stage 01 — Analysis
 
@@ -88,13 +83,7 @@ Master Skill **不承担全部模型知识**，也不应该直接堆叠 Python �
 
 输出：`ProblemMap`。
 
-任务：
-
-- 拆分问题；
-- 识别任务类型；
-- 定义变量、输入、输出和约束；
-- 建立子问题依赖关系；
-- 形成候选方法族，而不是立即决定具体算法。
+任务：拆分问题、识别任务类型、定义变量/输入/输出/约束、建立子问题依赖关系、形成候选方法族。
 
 ### Stage 02 — Data
 
@@ -102,14 +91,7 @@ Master Skill **不承担全部模型知识**，也不应该直接堆叠 Python �
 
 输出：`DataProfile`。
 
-任务：
-
-- 数据体检；
-- schema 与单位检查；
-- 缺失、重复、异常值检查；
-- 时间/空间/实体关系检查；
-- EDA；
-- 给出可解释的预处理建议。
+任务：数据体检、schema/单位检查、缺失/重复/异常检查、时间/空间/实体关系检查、EDA、预处理建议。
 
 ### Stage 03 — Modeling
 
@@ -117,13 +99,7 @@ Master Skill **不承担全部模型知识**，也不应该直接堆叠 Python �
 
 输出：`ModelPlan`、`ModelSpec`。
 
-任务：
-
-- 候选模型；
-- 可解释 baseline；
-- 候选模型比较；
-- 明确升级理由；
-- 建立假设、目标函数/方程、约束、参数来源和验证方案。
+任务：候选模型、可解释 baseline、模型比较、升级理由、假设/目标函数/方程/约束/参数来源/验证方案。
 
 ### Stage 04 — Compute
 
@@ -131,15 +107,7 @@ Master Skill **不承担全部模型知识**，也不应该直接堆叠 Python �
 
 输出：`RunManifest`、`ResultBundle`。
 
-任务：
-
-- 编码；
-- 参数估计；
-- 求解/预测/仿真；
-- 记录环境、参数、随机种子和输入；
-- 保存原始结果与关键数字。
-
-Python 模板属于工具层，由本阶段按需调用。
+任务：编码、参数估计、求解/预测/仿真、记录环境/参数/随机种子/输入、保存原始结果与关键数字。
 
 ### Stage 05 — Visualization
 
@@ -147,11 +115,7 @@ Python 模板属于工具层，由本阶段按需调用。
 
 输出：图表及 `PaperEvidence` 的图表证据。
 
-任务：
-
-- 只从真实结果生成图表；
-- 标注单位、来源、指标；
-- 图表必须能追溯到 run_id / result 文件。
+任务：只从真实结果生成图表，标注单位/来源/指标，图表追溯到 run_id/result 文件。
 
 ### Stage 06 — Verification
 
@@ -159,16 +123,7 @@ Python 模板属于工具层，由本阶段按需调用。
 
 输出：`VerificationReport`。
 
-任务：
-
-- 公式与单位检查；
-- 可行性/边界检查；
-- 残差/误差/预测验证；
-- 数据泄漏检查；
-- 敏感性与稳健性；
-- 可复现性检查。
-
-验证是独立质量层，不等同于“程序运行成功”。
+任务：公式与单位检查、可行性/边界检查、残差/误差/预测验证、数据泄漏检查、敏感性/稳健性、可复现性。
 
 ### Stage 07 — Writing
 
@@ -176,11 +131,7 @@ Python 模板属于工具层，由本阶段按需调用。
 
 输出：论文草稿/最终论文材料。
 
-任务：
-
-- 把模型、计算、验证和结论组织为论文；
-- 不自行发明核心数字；
-- 每个重要结论关联模型、结果和验证依据。
+任务：把模型、计算、验证和结论组织为论文；不自行发明核心数字；重要结论关联模型、结果和验证依据。
 
 ## 5. Gate 原则
 
@@ -202,30 +153,11 @@ Analysis Gate
 
 ## 6. D/E 的定位
 
-D/E 不是两条独立主流程，而是领域先验。
+D/E 不是两条独立主流程，而是领域先验。首先判断任务类型：prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision，再结合 D/E 先验缩小候选模型空间。
 
-首先判断问题属于什么任务：
+D 题常见先验：机理、概率与不确定性、优化、多目标、动力/传播/仿真、网络/路径、敏感性/稳健性等。
 
-- prediction
-- evaluation
-- optimization
-- classification
-- clustering
-- simulation
-- mechanism
-- network
-- risk
-- comprehensive_decision
-
-然后结合 D/E 先验缩小候选模型空间。
-
-### D 题常见先验
-
-机理、概率与不确定性、优化、多目标、动力/传播/仿真、网络/路径、敏感性/稳健性等。
-
-### E 题常见先验
-
-数据清洗、EDA、特征工程、回归、分类、时间序列、聚类、降维、综合评价、机器学习、决策优化等。
+E 题常见先验：数据清洗、EDA、特征工程、回归、分类、时间序列、聚类、降维、综合评价、机器学习、决策优化等。
 
 **禁止因为题目被标记为 D/E，就直接套用对应模型清单。**
 
@@ -261,35 +193,44 @@ Stage Skill
 生成或更新 Artifact
 ```
 
-因此新增 Python 模板前必须证明它是通用能力，并明确：
-
-- 输入；
-- 输出；
-- 适用问题；
-- 调用 Stage；
-- 验证方式；
-- smoke test / regression test。
+因此新增 Python 模板前必须证明它是通用能力，并明确输入、输出、适用问题、调用 Stage、验证方式、smoke test / regression test。
 
 ## 10. 历史题与 Benchmark
 
-2024D/E、2025D/E 等历史题用于：
+2024D/E、2025D/E 等历史题用于能力缺口发现、benchmark、regression test、泛化能力测试和案例知识提取。不得因为某一道历史题出现某种方法，就把该方法硬编码成主流程。
 
-- 能力缺口发现；
-- benchmark；
-- regression test；
-- 泛化能力测试；
-- 案例知识提取。
+## 11. Runtime 执行层
 
-不得因为某一道历史题出现某种方法，就把该方法硬编码成主流程。
+Master Skill 已具备 V0.6-C 的模型可执行运行时边界：
 
-## 11. 当前实现状态
+```text
+External Host / CLI
+        ↓ HostRequest
+RealLLMHostAdapter
+        ↓ ModelAdapter
+OpenAI-compatible LLM endpoint
+        ↓ ModelResponse
+RuntimeOrchestrator
+        ↓
+TaskContext + Stage Skills + Tools + Gates
+        ↓
+Artifacts
+```
 
-v2 第一阶段已经建立：
+当前 Runtime 已支持：
 
-- Master Skill 架构定义；
-- Stage Workflow 定义；
-- Artifact Contract 总规范；
-- 现有 RunManifest / Frozen Numbers 作为兼容基础；
-- 现有 Knowledge、Tools、Benchmarks、Tests 继续保留。
+- `tools/runtime/model_adapter.py`：Provider-neutral ModelAdapter；
+- `tools/runtime/llm_config.py`：环境变量配置，禁止在仓库保存密钥；
+- `tools/runtime/providers/openai_compatible.py`：标准库 HTTP 的 OpenAI-compatible 适配器；
+- `tools/runtime/real_host.py`：真实 LLM Host；
+- `tools/runtime/entrypoint.py`：`--host demo|real`；
+- `tools/runtime/orchestrator.py`：持久化每阶段实际模型输出；
+- `tools/runtime/V0_6_C_REAL_LLM.md`：配置与运行说明。
 
-下一阶段按迁移计划逐步建立真正的 `skills/00-start` 至 `skills/07-writing`，并为核心 Artifact 建立 JSON Schema 和示例。
+V0.6-C 的边界是**真实模型调用已经打通，但尚未声称完整 CUMCM 自动求解**。后续仍需完成真实附件摄取、结构化 Artifact 自动生成、Tool Dispatch、计算求解、独立验证和论文证据流水线。
+
+## 12. 当前实现状态
+
+v2 第一阶段已经建立 Master/Stage 架构、Artifact Contract、JSON Schema、Gate、Traceability、Workflow Engine、E2E Demo，以及 V0.6 Model-Executable Runtime。当前进一步完成 V0.6-C Real LLM Host Adapter。
+
+下一阶段优先推进 **V0.7：真实题目与附件摄取 + ProblemSpec/DataProfile 自动构建**，并继续保持 Artifact/Gate/Traceability 为运行时权威边界。

@@ -1,8 +1,7 @@
 """Deterministic file inspection primitives for V0.7.
 
-The inspector never invents semantic meaning. It reports only facts that can
-be derived from the file bytes/structure and marks optional extractors when
-unavailable.
+The inspector never invents semantic meaning. It is deliberately streaming-aware
+so large CUMCM attachments do not get loaded into memory during ingestion.
 """
 from __future__ import annotations
 
@@ -16,6 +15,9 @@ from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
 
+MAX_TEXT_BYTES = 1 * 1024 * 1024
+MAX_JSON_PROFILE_BYTES = 20 * 1024 * 1024
+
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -25,8 +27,13 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def _text_file(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace")
+def _text_file(path: Path, limit: int = MAX_TEXT_BYTES) -> str:
+    with path.open("rb") as f:
+        data = f.read(limit + 1)
+    text = data[:limit].decode("utf-8", errors="replace")
+    if len(data) > limit:
+        text += "\n[INGESTION_PREVIEW_TRUNCATED]"
+    return text
 
 
 def _docx_text(path: Path) -> str:
@@ -51,24 +58,36 @@ def _csv_profile(path: Path) -> dict[str, Any]:
         except csv.Error:
             dialect = csv.excel
         reader = csv.reader(f, dialect)
-        rows = list(reader)
-    header = rows[0] if rows else []
-    data = rows[1:] if rows else []
+        header = next(reader, [])
+        rows = 0
+        empty_cells = 0
+        # Exact duplicate detection is intentionally bounded. Large files are
+        # profiled without materializing all rows or a million-row hash set.
+        seen_sample: set[tuple[str, ...]] = set()
+        duplicate_sample = 0
+        for row in reader:
+            rows += 1
+            empty_cells += sum(1 for cell in row if not str(cell).strip())
+            if rows <= 5000:
+                key = tuple(row)
+                if key in seen_sample:
+                    duplicate_sample += 1
+                seen_sample.add(key)
     return {
-        "rows": len(data),
+        "rows": rows,
         "columns": len(header),
-        "columns_profile": [
-            {"name": str(name), "dtype": "string"}
-            for name in header
-        ],
+        "columns_profile": [{"name": str(name), "dtype": "string"} for name in header],
         "delimiter": getattr(dialect, "delimiter", ","),
-        "empty_cells": sum(1 for row in data for cell in row if not str(cell).strip()),
-        "duplicate_rows": len(data) - len({tuple(r) for r in data}),
+        "empty_cells": empty_cells,
+        "duplicate_rows_sample": duplicate_sample,
+        "duplicate_scope": "first_5000_rows_only",
     }
 
 
 def _json_profile(path: Path) -> dict[str, Any]:
-    value = json.loads(_text_file(path))
+    if path.stat().st_size > MAX_JSON_PROFILE_BYTES:
+        return {"profile_skipped": True, "reason": "JSON file exceeds safe deterministic profile size"}
+    value = json.loads(path.read_text(encoding="utf-8", errors="replace"))
     if isinstance(value, list):
         rows = value
     elif isinstance(value, dict):
@@ -84,22 +103,16 @@ def _json_profile(path: Path) -> dict[str, Any]:
 
 
 def _xlsx_profile(path: Path) -> dict[str, Any]:
-    # Lightweight OOXML inspection: enough for inventory and sheet discovery;
-    # detailed statistical profiling is delegated to the data Stage/tool layer.
     with zipfile.ZipFile(path) as z:
         names = z.namelist()
         sheets = [n for n in names if re.match(r"xl/worksheets/sheet\d+\.xml$", n)]
-        shared = []
-        if "xl/sharedStrings.xml" in names:
-            root = ET.fromstring(z.read("xl/sharedStrings.xml"))
-            shared = ["".join(t.text or "" for t in si.iter() if t.tag.endswith("}t")) for si in root]
         sheet_info = []
         for sheet in sheets:
             root = ET.fromstring(z.read(sheet))
             cells = root.findall(".//{*}c")
             rows = root.findall(".//{*}sheetData/{*}row")
             sheet_info.append({"sheet": sheet, "rows": len(rows), "cells": len(cells)})
-        return {"sheets": sheet_info, "shared_strings": len(shared)}
+        return {"sheets": sheet_info}
 
 
 def extract_text(path: Path) -> tuple[str, str | None]:
@@ -113,16 +126,28 @@ def extract_text(path: Path) -> tuple[str, str | None]:
             return "", f"docx extraction failed: {exc}"
     if ext == ".pdf":
         try:
-            from pypdf import PdfReader  # optional dependency
+            from pypdf import PdfReader
             reader = PdfReader(str(path))
-            return "\n\n".join(page.extract_text() or "" for page in reader.pages), None
+            chunks = []
+            total = 0
+            truncated = False
+            for page in reader.pages:
+                text = page.extract_text() or ""
+                if total + len(text) > MAX_TEXT_BYTES:
+                    chunks.append(text[: max(0, MAX_TEXT_BYTES - total)])
+                    truncated = True
+                    break
+                chunks.append(text)
+                total += len(text)
+            out = "\n\n".join(chunks)
+            if truncated:
+                out += "\n[INGESTION_PREVIEW_TRUNCATED]"
+            return out, None
         except ImportError:
             return "", "PDF text extraction requires optional dependency pypdf"
         except Exception as exc:
             return "", f"pdf extraction failed: {exc}"
-    if ext in {".csv", ".tsv"}:
-        return _text_file(path), None
-    if ext == ".json":
+    if ext in {".csv", ".tsv", ".json"}:
         return _text_file(path), None
     return "", "no text extractor for this format"
 
@@ -130,9 +155,7 @@ def extract_text(path: Path) -> tuple[str, str | None]:
 def inspect_file(path_like: str) -> dict[str, Any]:
     path = Path(path_like).expanduser().resolve()
     item: dict[str, Any] = {
-        "path": str(path),
-        "name": path.name,
-        "extension": path.suffix.lower(),
+        "path": str(path), "name": path.name, "extension": path.suffix.lower(),
         "mime": mimetypes.guess_type(path.name)[0] or "application/octet-stream",
         "exists": path.exists(),
     }

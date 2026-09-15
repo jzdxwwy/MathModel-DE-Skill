@@ -75,7 +75,7 @@ Master Skill **不承担全部模型知识**，也不应该直接堆叠 Python �
 
 输出：`ProblemSpec`、项目计划、todo。
 
-任务：确认工作模式、读取题目与附件、区分显式要求与待推断信息、建立问题编号。
+任务：确认工作模式、通过 ingestion 读取题目与附件、区分显式要求与待推断信息、建立问题编号。
 
 ### Stage 01 — Analysis
 
@@ -87,7 +87,7 @@ Master Skill **不承担全部模型知识**，也不应该直接堆叠 Python �
 
 ### Stage 02 — Data
 
-输入：`ProblemSpec`、`ProblemMap`、附件。
+输入：`ProblemSpec`、`ProblemMap`、附件摄取结果。
 
 输出：`DataProfile`。
 
@@ -201,11 +201,17 @@ Stage Skill
 
 ## 11. Runtime 执行层
 
-Master Skill 已具备 V0.6-C 的模型可执行运行时边界：
+Master Skill 已具备 V0.6-C 的模型可执行运行时边界，并在 V0.7 接入真实题目/附件摄取：
 
 ```text
 External Host / CLI
         ↓ HostRequest
+V0.7 Input Boundary
+        ↓
+Problem + Attachment Ingestion
+        ↓
+Ingestion Manifest + DataProfile
+        ↓
 RealLLMHostAdapter
         ↓ ModelAdapter
 OpenAI-compatible LLM endpoint
@@ -217,20 +223,22 @@ TaskContext + Stage Skills + Tools + Gates
 Artifacts
 ```
 
-当前 Runtime 已支持：
+当前 Runtime/摄取层已支持：
 
+- `tools/ingestion/inspectors.py`：文件存在性、SHA-256、文本提取、CSV/JSON/XLSX 基础结构检查；
+- `tools/ingestion/ingest.py`：题目与附件目录递归摄取；
+- `tools/ingestion/data_profile.py`：确定性 `DataProfile` 草稿；
+- `tools/runtime/input_boundary.py`：将摄取结果接入 Runtime；
+- `tools/runtime/real_host.py`：真实 LLM Host 消费摄取后的结构化输入；
 - `tools/runtime/model_adapter.py`：Provider-neutral ModelAdapter；
-- `tools/runtime/llm_config.py`：环境变量配置，禁止在仓库保存密钥；
 - `tools/runtime/providers/openai_compatible.py`：标准库 HTTP 的 OpenAI-compatible 适配器；
-- `tools/runtime/real_host.py`：真实 LLM Host；
 - `tools/runtime/entrypoint.py`：`--host demo|real`；
-- `tools/runtime/orchestrator.py`：持久化每阶段实际模型输出；
-- `tools/runtime/V0_6_C_REAL_LLM.md`：配置与运行说明。
+- `tools/runtime/orchestrator.py`：持久化每阶段实际模型输出。
 
-V0.6-C 的边界是**真实模型调用已经打通，但尚未声称完整 CUMCM 自动求解**。后续仍需完成真实附件摄取、结构化 Artifact 自动生成、Tool Dispatch、计算求解、独立验证和论文证据流水线。
+V0.7 的边界是**真实题目与附件已经可以被确定性摄取并交给 LLM**，但还没有声称模型已经自动完成全部 `ProblemSpec`/`ProblemMap` 语义构建、计算求解、独立验证和论文生成。特别是扫描 PDF 的 OCR/视觉摄取仍是后续能力。
 
 ## 12. 当前实现状态
 
-v2 第一阶段已经建立 Master/Stage 架构、Artifact Contract、JSON Schema、Gate、Traceability、Workflow Engine、E2E Demo，以及 V0.6 Model-Executable Runtime。当前进一步完成 V0.6-C Real LLM Host Adapter。
+v2 已建立 Master/Stage 架构、Artifact Contract、JSON Schema、Gate、Traceability、Workflow Engine、E2E Demo、V0.6 Model-Executable Runtime、V0.6-C Real LLM Host，以及 V0.7 真实题目与附件摄取层。
 
-下一阶段优先推进 **V0.7：真实题目与附件摄取 + ProblemSpec/DataProfile 自动构建**，并继续保持 Artifact/Gate/Traceability 为运行时权威边界。
+下一阶段优先推进 **V0.7-B：让 Stage 00/01/02 的 LLM 输出真正生成并校验 `ProblemSpec`、`ProblemMap`、`DataProfile` Artifact**；随后再进入 V0.8 的自动模型选择、Tool Dispatch 与真实计算。

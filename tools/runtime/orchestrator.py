@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 from .model_adapter import ModelAdapter, ModelRequest
 from .skill_loader import SkillLoader
@@ -56,9 +56,14 @@ class RuntimeOrchestrator:
             ctx.persist()
             raise RuntimeError(f"{stage.name}: model adapter failed: {response.message}")
 
-        # The model may reason or request a tool, but the stage executor is the
-        # authoritative bridge to filesystem artifacts. This prevents an LLM from
-        # claiming that an artifact exists without actually producing it.
+        # Persist the model output as runtime state. The stage executor remains
+        # authoritative for filesystem artifacts; the LLM cannot claim that an
+        # artifact exists merely by mentioning it in its response.
+        ctx.metadata.setdefault("model_outputs", {})[stage.name] = {
+            "status": response.status,
+            "output": response.output,
+            "message": response.message,
+        }
         stage.executor(ctx)
         if stage.gate:
             stage.gate(ctx)

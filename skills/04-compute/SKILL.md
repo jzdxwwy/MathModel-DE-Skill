@@ -1,39 +1,32 @@
 # Stage 04 — Compute Skill
 
-## 目的
-把 `ModelSpec` / `ToolDispatchPlan` 转化为可复现计算，并形成 `RunManifest` 与符合契约的 `ResultBundle`。
+## V0.9-C 目标
+把已通过 Model Gate 的 `ModelSpec + data_binding` 转化为真实、可复现、可审计的数值计算。
 
-## V0.9-B 核心原则
-1. **显式绑定**：数据文件、目标列、特征列和计算参数必须来自 `ModelSpec.data_binding`；禁止根据列顺序或“最后一列”等启发式猜测目标变量。
-2. **封闭工具注册表**：只能调用 `ToolRegistry` 中已注册的工具，不接受 LLM 直接生成 shell 命令。
-3. **可执行与可验证分离**：模板执行成功只说明代码运行完成，不说明模型正确。
-4. **失败闭合**：缺少数据绑定、格式不支持、列不存在或暂未实现对应数学输入契约时，状态为 `INPUT_BLOCKED`，不得伪造结果。
-5. **真实结果可追溯**：运行目录保存模板输出、运行清单、输入绑定与 ResultBundle。
+## 执行链
+`ModelSpec → explicit binding → ToolDispatchPlan → ToolRegistry → numerical adapter → RunManifest/ResultBundle`
 
-## 当前 V0.9-B 已接通模板
-- `linear_regression` → `python.baseline_regression`
-- `tree_ensemble_regression` → `python.model_compare`
-- `logistic_classification` → `python.classification_cv`
+## V0.9-C 已接通
+- E 型表格：线性回归、树模型比较、逻辑回归分类
+- 时间序列：rolling-origin Ridge 验证
+- 网络：Dijkstra 最短路径
+- 轨迹/事件流：有序事件与观测转移重构
+- 优化：显式目标函数 + 变量 + 边界 + 不等式约束 → SLSQP
+- 敏感性：显式目标函数 + 基准参数 + 网格 → OAT
+- Monte Carlo：显式事件表达式 + 随机变量分布 + N + seed
 
-其余已注册工具暂保持 audit adapter，待建立对应的数学输入契约后再接入真实计算。
+## 安全与真实性
+1. LLM 只能提出 `data_binding`，不能提交 Python 代码。
+2. 缺少数据路径、目标列、变量、公式、分布或约束等必要信息时返回 `INPUT_BLOCKED`。
+3. 表达式执行只接受声明变量和白名单数学函数；禁止 import、lambda、语句和任意代码。
+4. 不得把模板演示目标、默认参数或猜测值冒充竞赛题真实模型。
+5. Tool Registry 是封闭集合，禁止动态执行任意工具名。
 
-## 数据绑定契约
-```json
-{
-  "data_path": "附件或工作目录中的明确文件",
-  "target": "明确目标列",
-  "features": ["明确特征列"],
-  "seed": 20260913,
-  "test_size": 0.2,
-  "n_splits": 5
-}
-```
-其中后 3 项按模型适用性提供。`data_path` 与 `target` 对当前表格型模板是必需的。
-
-## 输出
-- `RunManifest`
-- `ResultBundle`
-- 模板原始结果文件
+## ResultBundle
+计算结果必须映射到正式 `ResultBundle`：`outputs / metrics / artifacts / provenance`。程序退出码成功不等于数学正确；Verification Stage 仍必须检查公式、单位、可行性、误差和稳健性。
 
 ## Gate
-`RUN_COMPLETE` ≠ 数学正确。结果必须进入 Verification Stage；`INPUT_BLOCKED` 不得进入论文结论。
+- Binding Gate：输入契约完整
+- Execution Gate：工具实际运行完成
+- ResultBundle Gate：Schema 合法
+- Verification Gate：数学正确性另行判定

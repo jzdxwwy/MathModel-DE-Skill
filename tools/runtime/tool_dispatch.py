@@ -1,4 +1,4 @@
-"""V0.9-B provider-neutral dispatch planning."""
+"""V0.9-D provider-neutral dispatch planning with binding gate status."""
 from __future__ import annotations
 from typing import Any
 
@@ -8,10 +8,13 @@ def build_dispatch(model_plan: dict[str, Any]) -> dict[str, Any]:
     for tm in model_plan.get("task_models", []):
         selected=tm["selection"]["model_id"]
         candidate=next(c for c in tm["candidates"] if c["model_id"]==selected)
-        item={"task_id":tm["task_id"],"model_id":selected,"tool":candidate.get("tool") or _tool_from_model(candidate),"inputs":["DataProfile","ProblemMap"],"outputs":["RunManifest","ResultBundle"],"status":"PLANNED"}
-        if tm.get("data_binding"):
-            item["binding"]=tm["data_binding"]
-            item["status"]="READY"
+        binding=tm.get("data_binding")
+        status="PLANNED"
+        if isinstance(binding,dict):
+            status="BLOCKED" if binding.get("binding_status")=="BLOCKED" else "READY"
+        item={"task_id":tm["task_id"],"model_id":selected,"tool":candidate.get("tool") or _tool_from_model(candidate),"inputs":["DataProfile","ProblemMap"],"outputs":["RunManifest","ResultBundle"],"status":status}
+        if isinstance(binding,dict):
+            item["binding"]=binding
         dispatches.append(item)
     return {"artifact_type":"ToolDispatchPlan","schema_version":"0.9","status":"VALIDATED","dispatches":dispatches}
 

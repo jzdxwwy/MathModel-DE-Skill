@@ -26,12 +26,7 @@ class RuntimeStage:
 class RuntimeOrchestrator:
     """Run model-driven stages while keeping artifacts and gates authoritative."""
 
-    def __init__(
-        self,
-        repo_root: Path,
-        model: ModelAdapter,
-        tools: Optional[ToolRegistry] = None,
-    ):
+    def __init__(self, repo_root: Path, model: ModelAdapter, tools: Optional[ToolRegistry] = None):
         self.loader = SkillLoader(repo_root)
         self.model = model
         self.tools = tools or ToolRegistry()
@@ -46,6 +41,7 @@ class RuntimeOrchestrator:
                 "problem_input": ctx.problem_input,
                 "artifacts": ctx.artifacts,
                 "stage_status": ctx.stage_status,
+                "metadata": ctx.metadata,
                 "skill": bundle,
                 "tools": self.tools.describe(),
             },
@@ -55,10 +51,6 @@ class RuntimeOrchestrator:
             ctx.set_stage(stage.name, "MODEL_FAIL")
             ctx.persist()
             raise RuntimeError(f"{stage.name}: model adapter failed: {response.message}")
-
-        # Persist the model output as runtime state. The stage executor remains
-        # authoritative for filesystem artifacts; the LLM cannot claim that an
-        # artifact exists merely by mentioning it in its response.
         ctx.metadata.setdefault("model_outputs", {})[stage.name] = {
             "status": response.status,
             "output": response.output,

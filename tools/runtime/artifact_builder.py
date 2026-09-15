@@ -15,7 +15,6 @@ try:
 except ImportError:  # pragma: no cover
     Draft202012Validator = None  # type: ignore
 
-
 SCHEMAS = {
     "ProblemSpec": "problem-spec.schema.json",
     "ProblemMap": "problem-map.schema.json",
@@ -36,11 +35,8 @@ def validate_artifact(repo_root: Path, artifact: dict[str, Any], artifact_type: 
     return [f"{'.'.join(str(x) for x in e.path) or '<root>'}: {e.message}" for e in errors]
 
 
-def _unwrap(output: dict[str, Any], artifact_type: str) -> dict[str, Any]:
-    """Accept direct artifact JSON or the documented envelope."""
+def _unwrap(output: dict[str, Any]) -> dict[str, Any]:
     candidate = output.get("artifact") if isinstance(output.get("artifact"), dict) else output
-    if candidate.get("artifact_type") == artifact_type:
-        return dict(candidate)
     return dict(candidate)
 
 
@@ -50,12 +46,11 @@ def _base_status(artifact: dict[str, Any], errors: list[str]) -> dict[str, Any]:
 
 
 def build_problem_spec(repo_root: Path, output: dict[str, Any], problem_input: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
-    artifact = _unwrap(output, "ProblemSpec")
+    artifact = _unwrap(output)
     artifact.setdefault("artifact_type", "ProblemSpec")
     artifact.setdefault("schema_version", "0.1")
     artifact.setdefault("status", "DRAFT")
-    problem_id = artifact.get("problem_id") or problem_input.get("problem_id") or "problem-001"
-    artifact["problem_id"] = problem_id
+    artifact["problem_id"] = artifact.get("problem_id") or problem_input.get("problem_id") or "problem-001"
     source = artifact.setdefault("source", {})
     source.setdefault("title", problem_input.get("problem", "")[:120] or "Untitled problem")
     source.setdefault("mode", "problem_solving")
@@ -65,36 +60,30 @@ def build_problem_spec(repo_root: Path, output: dict[str, Any], problem_input: d
 
 
 def build_problem_map(repo_root: Path, output: dict[str, Any], problem_spec: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
-    artifact = _unwrap(output, "ProblemMap")
+    artifact = _unwrap(output)
     artifact.setdefault("artifact_type", "ProblemMap")
     artifact.setdefault("schema_version", "0.1")
     artifact.setdefault("status", "DRAFT")
     artifact.setdefault("problem_id", problem_spec["problem_id"])
     artifact.setdefault("problem_type", problem_spec.get("problem_type", []))
     spec_ids = {t["task_id"] for t in problem_spec.get("tasks", [])}
-    tasks = artifact.get("tasks", [])
-    map_ids = {t.get("task_id") for t in tasks}
-    if spec_ids and map_ids != spec_ids:
-        artifact["open_questions"] = list(artifact.get("open_questions", [])) + [
-            f"ProblemMap task IDs {sorted(map_ids)} do not exactly match ProblemSpec task IDs {sorted(spec_ids)}"
-        ]
+    map_ids = {t.get("task_id") for t in artifact.get("tasks", [])}
     errors = validate_artifact(repo_root, artifact, "ProblemMap")
     if spec_ids and map_ids != spec_ids:
-        errors.append("cross-artifact task_id mismatch")
+        errors.append(f"cross-artifact task_id mismatch: spec={sorted(spec_ids)}, map={sorted(map_ids)}")
     return _base_status(artifact, errors), errors
 
 
 def merge_data_profile(deterministic: dict[str, Any], proposed: dict[str, Any]) -> dict[str, Any]:
     """Merge semantic LLM additions without allowing it to rewrite source facts."""
     merged = dict(deterministic)
-    proposed = _unwrap(proposed, "DataProfile")
+    proposed = _unwrap(proposed)
     merged["artifact_type"] = "DataProfile"
     merged["schema_version"] = deterministic.get("schema_version", "0.1")
     merged["status"] = "DRAFT"
     merged["assets"] = deterministic.get("assets", [])
-    existing_risks = list(deterministic.get("data_risks", []))
-    proposed_risks = [str(x) for x in proposed.get("data_risks", [])]
-    merged["data_risks"] = list(dict.fromkeys(existing_risks + proposed_risks))
+    risks = list(deterministic.get("data_risks", [])) + [str(x) for x in proposed.get("data_risks", [])]
+    merged["data_risks"] = list(dict.fromkeys(risks))
     if proposed.get("gate_decision") == "FAIL" or deterministic.get("gate_decision") == "FAIL":
         merged["gate_decision"] = "FAIL"
     elif merged["data_risks"]:

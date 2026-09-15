@@ -1,9 +1,10 @@
-"""Real LLM host adapter with V0.8 model selection and dispatch planning."""
+"""Real LLM host adapter through V0.9-B numerical execution."""
 from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Optional
 from .artifact_builder import build_data_profile, build_problem_map, build_problem_spec, persist_artifact, validate_artifact
+from .execution_engine import ToolExecutionEngine
 from .host_adapter import HostRequest, HostResponse
 from .input_boundary import ingest_runtime_input
 from .llm_config import LLMConfig
@@ -14,23 +15,45 @@ from .task_context import TaskContext
 from ..modeling.model_selector import select_models
 from ..modeling.model_plan_builder import build_model_plan, build_model_spec
 from .tool_dispatch import build_dispatch
+from .v09_tools import register_default_tools
+
+
+def _proposal_for_task(output: object, task_id: str) -> dict:
+    if not isinstance(output, dict):
+        return {}
+    items = output.get("task_models")
+    if isinstance(items, list):
+        for item in items:
+            if isinstance(item, dict) and item.get("task_id") == task_id:
+                return item
+    if output.get("task_id") == task_id:
+        return output
+    return {}
+
 
 class RealLLMHostAdapter:
-    """Run ingestion, front-end artifacts, deterministic model selection and dispatch planning."""
+    """Run ingestion, semantic front-end, deterministic selection and V0.9-B compute."""
     def __init__(self, repo_root: Path, model: Optional[ModelAdapter] = None, config: Optional[LLMConfig] = None):
-        self.repo_root=repo_root; self.config=config or LLMConfig.from_env(); self.model=model or OpenAICompatibleModelAdapter(self.config)
+        self.repo_root=repo_root
+        self.config=config or LLMConfig.from_env()
+        self.model=model or OpenAICompatibleModelAdapter(self.config)
 
     def run(self, request: HostRequest) -> HostResponse:
-        task_id=request.task_id or "runtime-llm-001"; project_dir=Path(request.output_dir).resolve()
+        task_id=request.task_id or "runtime-llm-001"
+        project_dir=Path(request.output_dir).resolve()
         ingested=ingest_runtime_input(request.problem_input.get("problem",""),request.problem_input.get("attachments",[]),project_dir)
         ctx=TaskContext(task_id=task_id,project_dir=project_dir,problem_input=ingested,metadata={"host":"real-llm","llm":self.config.safe_dict(),**request.metadata})
-        for name,path in ingested.get("artifact_paths",{}).items(): ctx.register_artifact(f"input:{name}",Path(path))
+        for name,path in ingested.get("artifact_paths",{}).items():
+            ctx.register_artifact(f"input:{name}",Path(path))
         runtime=RuntimeOrchestrator(repo_root=self.repo_root,model=self.model)
 
         def save_output(stage):
             def ex(s):
                 payload=s.metadata.get("model_outputs",{}).get(stage,{})
-                p=s.project_dir/"runtime"/f"{stage}.json"; p.parent.mkdir(parents=True,exist_ok=True); p.write_text(json.dumps(payload,ensure_ascii=False,indent=2,default=str),encoding="utf-8"); s.register_artifact(stage,p)
+                p=s.project_dir/"runtime"/f"{stage}.json"
+                p.parent.mkdir(parents=True,exist_ok=True)
+                p.write_text(json.dumps(payload,ensure_ascii=False,indent=2,default=str),encoding="utf-8")
+                s.register_artifact(stage,p)
             return ex
         def s00(s):
             save_output("00-start")(s); a,e=build_problem_spec(self.repo_root,s.metadata["model_outputs"]["00-start"].get("output",{}),s.problem_input); p=persist_artifact(s.project_dir,"problem-spec",a); s.register_artifact("ProblemSpec",p)
@@ -46,25 +69,51 @@ class RealLLMHostAdapter:
             RuntimeStage("01-analysis","Return ONLY JSON ProblemMap. Map every ProblemSpec task exactly once with identical task_id. Required task_id, objective, inputs, outputs.",s01),
             RuntimeStage("02-data","Return ONLY JSON semantic DataProfile additions. Deterministic ingestion facts are authoritative; do not rewrite them.",s02)]
         runtime.run(ctx,stages)
-        problem_map=json.loads((project_dir/"artifacts/problem-map.json").read_text(encoding="utf-8")); data_profile=json.loads((project_dir/"artifacts/data-profile.json").read_text(encoding="utf-8")); selection=select_models(problem_map,data_profile); ctx.metadata["model_selection"]=selection
+        problem_map=json.loads((project_dir/"artifacts/problem-map.json").read_text(encoding="utf-8"))
+        data_profile=json.loads((project_dir/"artifacts/data-profile.json").read_text(encoding="utf-8"))
+        selection=select_models(problem_map,data_profile)
+        ctx.metadata["model_selection"]=selection
+        proposal_output={}
+
         def s03(s):
-            save_output("03-modeling")(s); plan=build_model_plan(selection); e=validate_artifact(self.repo_root,plan,"ModelPlan")
+            nonlocal proposal_output
+            save_output("03-modeling")(s)
+            proposal_output=s.metadata["model_outputs"]["03-modeling"].get("output",{})
+            plan=build_model_plan(selection)
+            e=validate_artifact(self.repo_root,plan,"ModelPlan")
             if e: raise RuntimeError("03-modeling ModelPlan gate failed: "+"; ".join(e))
-            pp=persist_artifact(s.project_dir,"model-plan",plan); s.register_artifact("ModelPlan",pp); spec_dir=s.project_dir/"artifacts/model-spec"; spec_dir.mkdir(parents=True,exist_ok=True)
+            pp=persist_artifact(s.project_dir,"model-plan",plan); s.register_artifact("ModelPlan",pp)
+            spec_dir=s.project_dir/"artifacts/model-spec"; spec_dir.mkdir(parents=True,exist_ok=True)
             for item in plan["task_models"]:
-                spec=build_model_spec(item,problem_map); e=validate_artifact(self.repo_root,spec,"ModelSpec")
+                proposal=_proposal_for_task(proposal_output,item["task_id"])
+                spec=build_model_spec(item,problem_map,proposal)
+                e=validate_artifact(self.repo_root,spec,"ModelSpec")
                 if e: raise RuntimeError(f"ModelSpec gate failed for {item['task_id']}: "+"; ".join(e))
                 p=spec_dir/f"{item['task_id']}.json"; p.write_text(json.dumps(spec,ensure_ascii=False,indent=2),encoding="utf-8"); s.register_artifact(f"ModelSpec:{item['task_id']}",p)
                 candidates=[]
-                for rank,c in enumerate(item["candidates"],1): candidates.append({"model_id":c["model_id"],"name":c["name"],"method":c["model_id"],"evidence":[c["fit_rationale"],f"评分={c.get('score',0)}"],"metrics":{"selection_score":c.get("score",0)},"rank":rank})
+                for rank,c in enumerate(item["candidates"],1): candidates.append({"model_id":c["model_id"],"name":c["name"],"method":c["model_id"],"evidence":[c["fit_rationale"],f"评分={c.get('score',0)}"],"metrics":{"selection_score":c.get('score',0)},"rank":rank})
                 comp={"artifact_type":"ModelComparison","schema_version":"0.8","status":"VALIDATED","task_id":item["task_id"],"candidates":candidates,"comparison_protocol":{"same_data":True,"same_metric_basis":True,"cross_validation":False,"holdout":False,"bootstrap_or_resampling":False},"decision":{"selected_model_id":item["selection"]["model_id"],"reason":item["selection"]["reason"],"tradeoffs":["实际拟合指标在V0.9计算阶段补充"]}}
                 e=validate_artifact(self.repo_root,comp,"ModelComparison")
                 if e: raise RuntimeError(f"ModelComparison gate failed: "+"; ".join(e))
                 cp=persist_artifact(s.project_dir,f"model-comparison-{item['task_id']}",comp); s.register_artifact(f"ModelComparison:{item['task_id']}",cp)
+
         def s04(s):
-            plan=json.loads((s.project_dir/"artifacts/model-plan.json").read_text(encoding="utf-8")); dispatch=build_dispatch(plan); e=validate_artifact(self.repo_root,dispatch,"ToolDispatchPlan")
+            plan=json.loads((s.project_dir/"artifacts/model-plan.json").read_text(encoding="utf-8"))
+            for tm in plan.get("task_models",[]):
+                proposal=_proposal_for_task(proposal_output,tm["task_id"])
+                if proposal.get("data_binding"):
+                    tm["data_binding"]=proposal["data_binding"]
+            dispatch=build_dispatch(plan)
+            e=validate_artifact(self.repo_root,dispatch,"ToolDispatchPlan")
             if e: raise RuntimeError("04-compute dispatch gate failed: "+"; ".join(e))
-            p=persist_artifact(s.project_dir,"tool-dispatch",dispatch); s.register_artifact("ToolDispatchPlan",p); s.metadata["dispatch_status"]="PLANNED_ONLY"
-        tail=[RuntimeStage("03-modeling","Use metadata.model_selection as authoritative. Return JSON ModelSpec proposals; do not override deterministic selected models or invent data.",s03),RuntimeStage("04-compute","Create the closed tool-dispatch plan from the validated ModelPlan. Do not execute numerical tools; V0.8 plans dispatch only.",s04)]
-        runtime.run(ctx,tail); manifest=ctx.persist()
-        return HostResponse(status="completed",task_id=task_id,manifest=str(manifest),message="V0.8 completed: model selection, ModelPlan/ModelSpec/ModelComparison and closed tool dispatch plan. Numerical execution is deferred to V0.9.",artifacts={k:str(v) for k,v in ctx.artifacts.items()})
+            p=persist_artifact(s.project_dir,"tool-dispatch",dispatch); s.register_artifact("ToolDispatchPlan",p)
+            registry=__import__(".tool_registry",package=__package__,fromlist=["ToolRegistry"]).ToolRegistry()
+            register_default_tools(registry)
+            engine=ToolExecutionEngine(self.repo_root,registry)
+            executions=engine.execute(dispatch,project_dir,request.problem_input.get("problem", ""))
+            ep=s.project_dir/"artifacts/v09-execution.json"; ep.write_text(json.dumps(executions,ensure_ascii=False,indent=2),encoding="utf-8"); s.register_artifact("V09Execution",ep)
+            s.metadata["dispatch_status"]="EXECUTED"
+        tail=[RuntimeStage("03-modeling","Use metadata.model_selection as authoritative. Return JSON task_models with optional explicit data_binding {data_path,target,features,seed,test_size,n_splits}; never guess a target or override selected models.",s03),RuntimeStage("04-compute","Execute the closed dispatch through registered tools. Unsupported or insufficiently bound inputs must become INPUT_BLOCKED, never fabricated data.",s04)]
+        runtime.run(ctx,tail)
+        manifest=ctx.persist()
+        return HostResponse(status="completed",task_id=task_id,manifest=str(manifest),message="V0.9-B completed: explicit data binding, numerical template execution where supported, and fail-closed INPUT_BLOCKED for unsupported/missing inputs.",artifacts={k:str(v) for k,v in ctx.artifacts.items()})

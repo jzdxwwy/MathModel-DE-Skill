@@ -1,20 +1,24 @@
-"""Executable entry point for MathModel-DE-Skill Runtime V0.6-B.
+"""Executable entry point for MathModel-DE-Skill Runtime V0.6-C.
 
 Usage:
-    python -m tools.runtime.entrypoint --problem problem.pdf --attachments ./attachments --out final_output
+    Demo/offline:
+        python -m tools.runtime.entrypoint --host demo --problem problem.pdf
 
-The default host is a deterministic demo adapter. A real LLM host can import
-HostRequest/HostAdapter and provide its own model callback without changing the
-Runtime contract.
+    Real OpenAI-compatible endpoint:
+        set MATHMODEL_LLM_BASE_URL, MATHMODEL_LLM_API_KEY, MATHMODEL_LLM_MODEL
+        python -m tools.runtime.entrypoint --host real --problem problem.pdf --attachments ./attachments
+
+The real host is provider-neutral at the Runtime boundary and currently uses
+an OpenAI-compatible HTTP chat-completions adapter. No API key is stored in code.
 """
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Any
 
-from .host_adapter import HostRequest, HostResponse, HostAdapter, normalize_problem_input
+from .host_adapter import HostRequest, HostResponse, normalize_problem_input
 from .model_adapter import CallbackModelAdapter, ModelResponse
+from .real_host import RealLLMHostAdapter
 from .task_context import TaskContext
 from .orchestrator import RuntimeOrchestrator, RuntimeStage
 
@@ -77,6 +81,7 @@ class DemoHostAdapter:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run MathModel-DE-Skill Runtime")
+    parser.add_argument("--host", choices=["demo", "real"], default="demo", help="Execution host")
     parser.add_argument("--problem", help="Problem statement path or text")
     parser.add_argument("--attachments", nargs="*", default=[], help="Attachment paths")
     parser.add_argument("--out", default="runtime_run", help="Runtime output directory")
@@ -94,10 +99,13 @@ def main(argv: list[str] | None = None) -> int:
         output_dir=args.out,
         task_id=args.task_id,
     )
-    response = DemoHostAdapter(repo_root).run(request)
+    host = DemoHostAdapter(repo_root) if args.host == "demo" else RealLLMHostAdapter(repo_root)
+    response = host.run(request)
     print(f"status={response.status}")
     print(f"task_id={response.task_id}")
     print(f"manifest={response.manifest}")
+    if response.message:
+        print(f"message={response.message}")
     return 0 if response.status == "completed" else 1
 
 

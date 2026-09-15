@@ -1,4 +1,4 @@
-"""Real LLM host adapter through V0.9-B numerical execution."""
+"""Real LLM host adapter through V0.9-D deterministic binding and numerical execution."""
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -10,10 +10,11 @@ from .input_boundary import ingest_runtime_input
 from .llm_config import LLMConfig
 from .model_adapter import ModelAdapter
 from .orchestrator import RuntimeOrchestrator, RuntimeStage
-from .providers.openai_compatible import OpenAICompatibleModelAdapter
 from .task_context import TaskContext
+from .providers.openai_compatible import OpenAICompatibleModelAdapter
 from ..modeling.model_selector import select_models
 from ..modeling.model_plan_builder import build_model_plan, build_model_spec
+from ..modeling.data_binding import resolve_binding
 from .tool_dispatch import build_dispatch
 from .v09_tools import register_default_tools
 
@@ -32,7 +33,7 @@ def _proposal_for_task(output: object, task_id: str) -> dict:
 
 
 class RealLLMHostAdapter:
-    """Run ingestion, semantic front-end, deterministic selection and V0.9-B compute."""
+    """Run ingestion, semantic front-end, deterministic selection, binding and compute."""
     def __init__(self, repo_root: Path, model: Optional[ModelAdapter] = None, config: Optional[LLMConfig] = None):
         self.repo_root=repo_root
         self.config=config or LLMConfig.from_env()
@@ -80,13 +81,15 @@ class RealLLMHostAdapter:
             save_output("03-modeling")(s)
             proposal_output=s.metadata["model_outputs"]["03-modeling"].get("output",{})
             plan=build_model_plan(selection)
-            e=validate_artifact(self.repo_root,plan,"ModelPlan")
-            if e: raise RuntimeError("03-modeling ModelPlan gate failed: "+"; ".join(e))
-            pp=persist_artifact(s.project_dir,"model-plan",plan); s.register_artifact("ModelPlan",pp)
             spec_dir=s.project_dir/"artifacts/model-spec"; spec_dir.mkdir(parents=True,exist_ok=True)
             for item in plan["task_models"]:
                 proposal=_proposal_for_task(proposal_output,item["task_id"])
-                spec=build_model_spec(item,problem_map,proposal)
+                task=next((t for t in problem_map.get("tasks",[]) if t.get("task_id")==item["task_id"]),{})
+                binding=resolve_binding(item["selection"]["model_id"],task,data_profile,proposal)
+                item["data_binding"]=binding
+                resolved_proposal=dict(proposal)
+                resolved_proposal["data_binding"]=binding
+                spec=build_model_spec(item,problem_map,resolved_proposal)
                 e=validate_artifact(self.repo_root,spec,"ModelSpec")
                 if e: raise RuntimeError(f"ModelSpec gate failed for {item['task_id']}: "+"; ".join(e))
                 p=spec_dir/f"{item['task_id']}.json"; p.write_text(json.dumps(spec,ensure_ascii=False,indent=2),encoding="utf-8"); s.register_artifact(f"ModelSpec:{item['task_id']}",p)
@@ -96,13 +99,11 @@ class RealLLMHostAdapter:
                 e=validate_artifact(self.repo_root,comp,"ModelComparison")
                 if e: raise RuntimeError(f"ModelComparison gate failed: "+"; ".join(e))
                 cp=persist_artifact(s.project_dir,f"model-comparison-{item['task_id']}",comp); s.register_artifact(f"ModelComparison:{item['task_id']}",cp)
+            plan["status"]="VALIDATED"
+            pp=persist_artifact(s.project_dir,"model-plan",plan); s.register_artifact("ModelPlan",pp)
 
         def s04(s):
             plan=json.loads((s.project_dir/"artifacts/model-plan.json").read_text(encoding="utf-8"))
-            for tm in plan.get("task_models",[]):
-                proposal=_proposal_for_task(proposal_output,tm["task_id"])
-                if proposal.get("data_binding"):
-                    tm["data_binding"]=proposal["data_binding"]
             dispatch=build_dispatch(plan)
             e=validate_artifact(self.repo_root,dispatch,"ToolDispatchPlan")
             if e: raise RuntimeError("04-compute dispatch gate failed: "+"; ".join(e))
@@ -113,7 +114,7 @@ class RealLLMHostAdapter:
             executions=engine.execute(dispatch,project_dir,request.problem_input.get("problem", ""))
             ep=s.project_dir/"artifacts/v09-execution.json"; ep.write_text(json.dumps(executions,ensure_ascii=False,indent=2),encoding="utf-8"); s.register_artifact("V09Execution",ep)
             s.metadata["dispatch_status"]="EXECUTED"
-        tail=[RuntimeStage("03-modeling","Use metadata.model_selection as authoritative. Return JSON task_models with optional explicit data_binding {data_path,target,features,seed,test_size,n_splits}; never guess a target or override selected models.",s03),RuntimeStage("04-compute","Execute the closed dispatch through registered tools. Unsupported or insufficiently bound inputs must become INPUT_BLOCKED, never fabricated data.",s04)]
+        tail=[RuntimeStage("03-modeling","Use metadata.model_selection as authoritative. Return JSON task_models with optional semantic binding hints only (target/features/source/target/time_col). Never guess or override selected models; every proposed column/path must be checkable against DataProfile.",s03),RuntimeStage("04-compute","Execute the closed dispatch through registered tools. BLOCKED bindings remain fail-closed as INPUT_BLOCKED; never fabricate data.",s04)]
         runtime.run(ctx,tail)
         manifest=ctx.persist()
-        return HostResponse(status="completed",task_id=task_id,manifest=str(manifest),message="V0.9-B completed: explicit data binding, numerical template execution where supported, and fail-closed INPUT_BLOCKED for unsupported/missing inputs.",artifacts={k:str(v) for k,v in ctx.artifacts.items()})
+        return HostResponse(status="completed",task_id=task_id,manifest=str(manifest),message="V0.9-D completed: deterministic DataProfile-to-binding resolution, binding gate, numerical dispatch, and fail-closed execution.",artifacts={k:str(v) for k,v in ctx.artifacts.items()})

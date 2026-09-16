@@ -8,7 +8,7 @@
   "properties": {
     "artifact_type": {"const": "EvidenceLineage"},
     "schema_version": {"type": "string"},
-    "nodes": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["id", "kind"], "properties": {"id": {"type": "string"}, "kind": {"enum": ["input", "data", "model", "run", "result", "verification", "paper_evidence", "figure"]}, "ref": {"type": "string"}, "label": {"type": "string"}}}},
+    "nodes": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["id", "kind"], "properties": {"id": {"type": "string"}, "kind": {"enum": ["input", "data", "model", "run", "result", "verification", "paper_evidence", "figure", "table", "equation"]}, "ref": {"type": "string"}, "label": {"type": "string"}}}},
     "edges": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["from", "to", "relation"], "properties": {"from": {"type": "string"}, "to": {"type": "string"}, "relation": {"enum": ["derived_from", "computed_by", "verified_by", "visualized_as", "cited_by"]}, "evidence_ref": {"type": "string"}}}}
   }
 }

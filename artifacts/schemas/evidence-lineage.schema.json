@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jzdxwwy/MathModel-DE-Skill/blob/main/artifacts/schemas/evidence-lineage.schema.json",
+  "title": "EvidenceLineage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifact_type", "schema_version", "nodes", "edges"],
+  "properties": {
+    "artifact_type": {"const": "EvidenceLineage"},
+    "schema_version": {"type": "string"},
+    "nodes": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["id", "kind"], "properties": {"id": {"type": "string"}, "kind": {"enum": ["input", "data", "model", "run", "result", "verification", "paper_evidence", "figure"]}, "ref": {"type": "string"}, "label": {"type": "string"}}}},
+    "edges": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["from", "to", "relation"], "properties": {"from": {"type": "string"}, "to": {"type": "string"}, "relation": {"enum": ["derived_from", "computed_by", "verified_by", "visualized_as", "cited_by"]}, "evidence_ref": {"type": "string"}}}}
+  }
+}

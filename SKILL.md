@@ -16,14 +16,15 @@
 - 05 Visualization：真实结果 → Figure/Table/Equation Evidence Binding → Presentation Data Manifest → Materialization → Render Manifest → PaperEvidence
 - 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance + Independent Recompute + Evidence Lineage + Rendered Consistency + Presentation Materialization + Reproducibility Manifest → VerificationReport
 - 07 Writing：PaperEvidence Gate 与 Presentation Gate 通过后才允许冻结证据并写论文；PaperManifest 规定论文结构与证据映射
+- 08 Final Submission：Final Submission Gate 汇总验证、展示物化、论文与交付文件，决定最终是否允许标记提交完成
 
 ## 3. D/E 定位
 D/E 是先验，不是固定模板。先识别 prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision 等任务类型，再结合 D/E 知识缩小模型空间。
 
 ## 4. Runtime / Gate
-`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → PaperEvidence → Presentation Evidence → Rendered Consistency → Presentation Materialization → Render Manifest → PaperManifest → SubmissionManifest → Writing → Final`
+`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → PaperEvidence → Presentation Evidence → Rendered Consistency → Presentation Materialization → Render Manifest → PaperManifest → SubmissionManifest → Writing → Final Submission Gate`
 
-Gate：`Analysis → Data → Model → Binding → Compute → Verification → PaperEvidence → Presentation → RenderedConsistency → Materialization → Reproducibility → Writing → Final`。任何关键 Gate 未通过不得标记完成。
+Gate：`Analysis → Data → Model → Binding → Compute → Verification → PaperEvidence → Presentation → RenderedConsistency → Materialization → Reproducibility → Writing → FinalSubmission`。任何关键 Gate 未通过不得标记完成。
 
 ## 5. V0.8
 确定性模型选择器按七维评分选择模型：fit 25、data 15、constraints 15、interpretability 15、verifiability 15、robustness 10、cost 5。LLM 不能覆盖选择结果或任意发明工具。
@@ -126,8 +127,33 @@ V0.9-N 将 PresentationDataManifest 从“校验输入”升级为“展示生�
 
 V0.9-N 已接入 `tools/runtime/verification_engine.py`：V0.9-M 一致性通过后才执行 materialization，并在每个 run 生成 `submission-manifest.json`。缺失显式要求的交付 artifact 或 materialization 失败时必须 fail-closed。
 
-## 19. 当前测试状态
-V0.9-N 代码、Schema、治理规范与测试夹具已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。
+## 19. V1.0：Final Submission Gate
+V1.0 将此前分散的 Verification、Presentation、Materialization、PaperManifest 与 SubmissionManifest 收束为最终交付门禁。
 
-## 20. 下一阶段
-V1.0：Final Submission Gate。把 PaperEvidence、Presentation Evidence、Rendered Manifest、PaperManifest、论文文稿及最终 Word/PDF/ZIP 纳入统一最终验收，检查证据闭环、图表/公式一致性、引用完整性、结果冻结状态、提交文件完整性和最终交付可重建性。
+核心链：
+
+`VerificationReport → PresentationRenderManifest → PaperManifest → SubmissionManifest → FinalSubmissionGateReport → Final Submission`
+
+新增：
+- `artifacts/schemas/final-submission-gate.schema.json`
+- `tools/verification/final_submission_gate.py`
+- `tests/verification/test_v10_final_submission_gate.py`
+- `00_governance/V1_0_FINAL_SUBMISSION_GATE.md`
+
+首版 Final Gate 检查：
+- ResultBundle 是否存在且为 `VALIDATED/FROZEN`；
+- VerificationReport 是否真实 `PASS`；
+- PresentationRenderManifest 是否真实 `PASS`；
+- SubmissionManifest 是否存在；
+- 调用方显式要求的 artifact 是否存在；
+- 若要求论文交付，论文文件是否存在。
+
+决策规则严格为：任一 `FAIL` → `FAIL`；无 `FAIL` 但存在 `NOT_RUN` → `NOT_RUN`；全部必要检查 `PASS` → `PASS`。V1.0 首版不把 `NOT_RUN` 自动升级为 PASS。
+
+Final Gate 不重新计算模型、不修改 ResultBundle、不伪造 hash；数学正确性仍由前置 Verification / Domain Rules / Independent Recompute 负责。
+
+## 20. 当前测试状态
+V1.0 首版代码、Schema、治理规范与回归测试已写入 GitHub。当前环境没有实际执行 pytest，因此不能声称测试通过。
+
+## 21. 后续 V1.0 增强
+下一步不是增加更多模型，而是继续把 Final Gate 做成真正的“提交验收器”：接入真实 PaperEvidence Gate、Presentation Gate、PaperManifest 引用闭环、Word/PDF/ZIP 完整性检查，并最终实现可重建性检查。

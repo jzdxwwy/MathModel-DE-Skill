@@ -13,6 +13,9 @@
     "checks": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["check_id", "category", "status", "evidence"], "properties": {"check_id": {"type": "string"}, "category": {"enum": ["data", "model", "numerical", "statistical", "sensitivity", "robustness", "provenance", "figure", "writing", "other"]}, "status": {"enum": ["PASS", "WARN", "FAIL", "NOT_RUN"]}, "evidence": {"type": "string"}, "metric": {}, "threshold": {}, "artifact_ref": {"type": "string"}}}},
     "gate_decision": {"enum": ["PASS", "PASS_WITH_WARNINGS", "FAIL"]},
     "critical_issues": {"type": "array", "items": {"type": "string"}},
-    "recommendations": {"type": "array", "items": {"type": "string"}}
+    "recommendations": {"type": "array", "items": {"type": "string"}},
+    "domain_rule_manifest": {"type": "array", "items": {"type": "object", "required": ["rule_id", "version", "model_ids"], "properties": {"rule_id": {"type": "string"}, "version": {"type": "string"}, "model_ids": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false}},
+    "acceptance_version": {"type": "string"},
+    "artifact_ref": {"type": "string"}
   }
 }

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EnvironmentClosure",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "run_id", "capture_mode", "fingerprint", "python", "platform", "packages", "tools", "source_files", "inputs", "policy", "complete"],
+  "properties": {
+    "artifact_type": {"const": "EnvironmentClosure"},
+    "schema_version": {"const": "1.0-E"},
+    "run_id": {"type": "string", "minLength": 1},
+    "capture_mode": {"enum": ["HOST_OBSERVED", "DECLARED", "REBUILD_OBSERVED"]},
+    "fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "python": {"type": "object", "required": ["version", "implementation"], "properties": {"version": {"type": "string"}, "implementation": {"type": "string"}}},
+    "platform": {"type": "object", "required": ["system", "release", "machine", "architecture"], "properties": {"system": {"type": "string"}, "release": {"type": "string"}, "machine": {"type": "string"}, "architecture": {"type": "string"}}},
+    "packages": {"type": "array", "items": {"type": "object", "required": ["name", "version"], "properties": {"name": {"type": "string"}, "version": {"type": "string"}, "source": {"type": "string"}}}},
+    "tools": {"type": "array", "items": {"type": "object", "required": ["name", "code_ref"], "properties": {"name": {"type": "string"}, "version": {"type": "string"}, "code_ref": {"type": "string"}, "sha256": {"type": "string"}}}},
+    "source_files": {"type": "array", "items": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string"}}}},
+    "inputs": {"type": "array", "items": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string"}, "size": {"type": "integer", "minimum": 0}}}},
+    "model_refs": {"type": "array", "items": {"type": "string"}},
+    "spec_refs": {"type": "array", "items": {"type": "string"}},
+    "policy": {"type": "object", "required": ["network", "shell", "isolation_required"], "properties": {"network": {"type": "boolean"}, "shell": {"type": "boolean"}, "isolation_required": {"type": "boolean"}}},
+    "complete": {"type": "boolean"}
+  }
+}

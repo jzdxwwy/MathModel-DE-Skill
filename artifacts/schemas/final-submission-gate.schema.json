@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Final Submission Gate Report",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "run_id", "checks", "gate_decision"],
+  "properties": {
+    "artifact_type": {"const": "FinalSubmissionGateReport"},
+    "schema_version": {"const": "1.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check_id", "category", "decision"],
+        "properties": {
+          "check_id": {"type": "string", "minLength": 1},
+          "category": {"type": "string", "minLength": 1},
+          "decision": {"enum": ["PASS", "FAIL", "NOT_RUN"]},
+          "message": {"type": "string"},
+          "refs": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "blocking_failures": {"type": "array", "items": {"type": "string"}},
+    "not_run_checks": {"type": "array", "items": {"type": "string"}},
+    "gate_decision": {"enum": ["PASS", "FAIL", "NOT_RUN"]}
+  },
+  "additionalProperties": false
+}

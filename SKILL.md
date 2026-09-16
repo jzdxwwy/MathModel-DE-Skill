@@ -22,9 +22,9 @@
 D/E 是先验，不是固定模板。先识别 prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision 等任务类型，再结合 D/E 知识缩小模型空间。
 
 ## 4. Runtime / Gate
-`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → PaperEvidence → Presentation Evidence → Rendered Consistency → Presentation Materialization → Render Manifest → PaperManifest → SubmissionManifest → Cross-Artifact Consistency → Writing → Final Submission Gate`
+`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → PaperEvidence → Presentation Evidence → Rendered Consistency → Presentation Materialization → Render Manifest → PaperManifest → SubmissionManifest → Cross-Artifact Consistency → Reproducibility Gate → Writing → Final Submission Gate`
 
-Gate：`Analysis → Data → Model → Binding → Compute → Verification → PaperEvidence → Presentation → RenderedConsistency → Materialization → Reproducibility → CrossArtifactConsistency → Writing → FinalSubmission`。任何关键 Gate 未通过不得标记完成。
+Gate：`Analysis → Data → Model → Binding → Compute → Verification → PaperEvidence → Presentation → RenderedConsistency → Materialization → Reproducibility → CrossArtifactConsistency → ReproducibilityGate → Writing → FinalSubmission`。任何关键 Gate 未通过不得标记完成。
 
 ## 5–19. 已有版本
 V0.8–V1.0 首版能力保持不变，具体实现与治理文件见仓库对应版本文档。
@@ -37,27 +37,35 @@ V1.0-B 解决“每个 Artifact 单独合法，但彼此引用错位”的问题
 并同时检查：
 `PresentationDataManifest → RenderManifest → SubmissionManifest → 实际交付文件`
 
+新增 B01–B08 跨 Artifact 检查，并把 `F6_CROSS_ARTIFACT` 接入 Final Submission Gate。
+
+## 21. V1.0-C：Reproducibility Gate
+V1.0-C 将能力从“可追溯、可交叉引用”推进到“可独立重建”。
+
+核心链：
+`Frozen ResultBundle → Rebuild Contract → Independent Rebuild → Rebuilt ResultBundle → Deterministic Comparison → Reproducibility Gate`
+
 新增：
-- `tools/verification/cross_artifact_consistency.py`
-- `artifacts/schemas/cross-artifact-consistency.schema.json`
-- `tests/verification/test_v10_cross_artifact.py`
-- `00_governance/V1_0_B_CROSS_ARTIFACT_CONSISTENCY.md`
+- `tools/verification/reproducibility_gate.py`
+- `artifacts/schemas/reproducibility-gate.schema.json`
+- `tests/verification/test_v10_reproducibility_gate.py`
+- `00_governance/V1_0_C_REPRODUCIBILITY_GATE.md`
 
-当前 B01–B08 检查：
-- PaperManifest 的 claim_refs 是否全部解析到 PaperEvidence；
-- PaperEvidence 的 material claims 是否都进入 PaperManifest；
-- figure/table/equation 引用是否解析到 PresentationDataManifest；
-- PresentationDataManifest 是否绑定到 VALIDATED/FROZEN ResultBundle；
-- Presentation evidence 是否闭合到 RenderManifest；
-- SubmissionManifest 中的 artifact 路径与 SHA256 是否和实际文件一致；
-- run_id 是否跨运行 Artifact 一致。
+V1.0-C 的原则：
+- 没有独立重建证据 → `NOT_RUN`；
+- 提供重建目录但缺少 ResultBundle → `FAIL`；
+- 原始 Frozen ResultBundle 永不覆盖；
+- 独立比较 `model_id`、output 名称、数值、单位和 metrics；
+- 数值比较采用显式 `atol=1e-8`、`rtol=1e-6`；
+- 必要源文件 SHA256 发生变化 → `FAIL`；
+- 不允许 LLM 将 `NOT_RUN` 擅自升级为 `PASS`。
 
-V1.0 Final Submission Gate 已新增 `F6_CROSS_ARTIFACT`，默认调用 V1.0-B。任一跨 Artifact 闭环失败即阻断最终 PASS。
+V1.0 Final Submission Gate 已新增 `F7_REPRODUCIBILITY`，默认要求 V1.0-C 通过。也就是说，最终提交级 PASS 不再仅代表“证据齐全”，还要求存在独立重建并与冻结结果一致。
 
-V1.0-B 仍不做 PDF/Word 像素检查、OCR、完整符号等价证明或独立重算；这些属于后续能力或前置验证职责。
+当前 C 是**确定性验收器**，不直接执行任意项目代码。后续可以继续增加容器化环境、依赖锁定、clean-room rebuild、数据集 hash closure 和 command replay。
 
-## 21. 当前测试状态
-V1.0-B 的代码、Schema、治理规范与回归测试已写入 GitHub。当前环境没有实际执行 pytest，因此不能声称测试通过。
+## 22. 当前测试状态
+V1.0-C 的代码、Schema、治理规范与回归测试已写入 GitHub。当前环境没有实际执行 pytest，因此不能声称测试通过。
 
-## 22. 后续 V1.0-C
-下一阶段应从“引用闭环”进入“可重建性闭环”：从 ProblemSpec/原始附件/代码/环境重新执行关键计算，与冻结 ResultBundle 做独立重建比较，并把重建差异纳入最终 Gate。
+## 23. 后续 V1.0-D
+下一阶段应把“独立重建”真正接入 Runtime：自动生成 Rebuild Contract，冻结输入/代码/环境，执行 clean rebuild，并将重建产物直接送入 V1.0-C Gate，而不是依赖人工提供 rebuild 目录。

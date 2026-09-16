@@ -14,14 +14,14 @@
 - 03 Modeling：确定性模型选择 → ModelPlan/ModelSpec/ModelComparison
 - 04 Compute：Binding Gate → ToolDispatch → 数值执行 → RunManifest/ResultBundle
 - 05 Visualization：真实结果 → 图表/PaperEvidence
-- 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance → VerificationReport → Verification Gate
+- 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance + Independent Recompute → VerificationReport → Verification Gate
 - 07 Writing：只使用已验证证据写论文
 
 ## 3. D/E 定位
 D/E 是先验，不是固定模板。先识别 prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision 等任务类型，再结合 D/E 知识缩小模型空间。
 
 ## 4. Runtime / Gate
-`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → VerificationReport`
+`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → VerificationReport`
 
 Gate：`Analysis → Data → Model → Binding → Compute → Verification → Writing → Final`。任何关键 Gate 未通过不得标记完成。
 
@@ -95,8 +95,28 @@ V0.9-H 将验证从“证据存在性”推进到“数学验收”。核心链�
 
 V0.9-H 不是符号定理证明器，不会把缺失证据自动推断为正确；其目标是建立可扩展的数学验收层。
 
-## 13. 当前测试状态
-V0.9-H 代码与治理文件已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。GitHub commit 成功不等于运行时验证通过。
+## 13. V0.9-I：Evidence Materialization + Independent Recompute
+V0.9-I 将 Verification 从“检查模型自己报告的数字”推进到“独立复算数字”。核心链：
 
-## 14. 下一阶段
-V0.9-I：从“绑定/结果中的验收证据”进一步走向 **Evidence Materialization + Independent Recompute**，在安全范围内直接从 ResultBundle 和数据产物独立复算指标、约束、路径、统计量，并建立历史题回归测试夹具与证据血缘。
+`ResultBundle → Raw Evidence → Independent Recompute → Reported-vs-Recomputed Comparison → VerificationReport → Gate`
+
+新增：
+- `tools/verification/recompute_engine.py`：独立指标复算器
+- `00_governance/V0_9_I_INDEPENDENT_RECOMPUTE.md`：独立复算治理规范
+- `tests/verification/test_recompute_engine.py`：回归/分类独立复算测试夹具
+
+当前支持：
+- 回归：从 `y_true/y_pred` 独立复算 MAE、RMSE、R²
+- 分类：从 `y_true/y_pred` 独立复算 Accuracy
+- 缺少原始证据 → `NOT_RUN`
+- 原始证据非有限或长度不一致 → `FAIL`
+- 独立复算值与 ResultBundle 报告值不一致 → `FAIL`
+- 采用显式绝对/相对容差比较
+
+独立复算绝不覆盖原始 ResultBundle，只向 VerificationReport 增加可追溯的验收证据。当前尚未覆盖所有模型族，未支持的模型保持 `NOT_RUN`。
+
+## 14. 当前测试状态
+V0.9-I 代码、治理规范与测试夹具已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。GitHub commit 成功不等于运行时验证通过。
+
+## 15. 下一阶段
+V0.9-J：扩展 Independent Recompute 到优化目标/约束、最短路径、Monte Carlo、敏感性和图表数据一致性，并建立统一 Evidence Lineage，使论文中的每一个关键数字都能追溯到“原始数据 → 计算 → ResultBundle → VerificationReport → PaperEvidence”。

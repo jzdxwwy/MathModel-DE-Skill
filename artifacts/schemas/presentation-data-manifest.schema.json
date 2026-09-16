@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Presentation Data Manifest",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "items"],
+  "properties": {
+    "artifact_type": {"const": "PresentationDataManifest"},
+    "schema_version": {"const": "0.9-M"},
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["evidence_id", "kind", "bindings"],
+        "properties": {
+          "evidence_id": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["figure", "table", "equation"]},
+          "render_ref": {"type": "string"},
+          "source_hash": {"type": "string"},
+          "bindings": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["source_ref", "result_ref"],
+              "properties": {
+                "source_ref": {"type": "string", "minLength": 1},
+                "result_ref": {"type": "string", "minLength": 1},
+                "path": {"type": "string"},
+                "value": {},
+                "tolerance": {"type": "number", "minimum": 0},
+                "normalized_expression": {"type": "string"},
+                "expression_hash": {"type": "string"}
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": false
+}

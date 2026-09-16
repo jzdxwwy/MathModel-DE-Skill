@@ -12,6 +12,7 @@ import hashlib
 import json
 
 from .cross_artifact_consistency import evaluate_cross_artifact_consistency
+from .reproducibility_gate import evaluate_reproducibility_gate
 
 PASS = "PASS"
 FAIL = "FAIL"
@@ -62,13 +63,15 @@ def evaluate_final_submission_gate(
     require_paper: bool = False,
     require_submission_manifest: bool = True,
     require_cross_artifact_consistency: bool = True,
+    require_reproducibility: bool = True,
+    rebuild_dir: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Evaluate a run directory using existing persisted evidence.
+    """Evaluate persisted evidence for final submission.
 
-    Mandatory checks are deliberately evidence-first. Missing reports are
-    NOT_RUN unless a contract explicitly requires them, in which case the
-    missing deliverable is FAIL. This function does not inspect PDF pixels or
-    perform OCR.
+    Reproducibility is a mandatory V1.0-C gate by default. Without an
+    independently supplied rebuild, C is NOT_RUN and therefore blocks PASS.
+    This function never executes arbitrary code and never modifies the
+    reference ResultBundle.
     """
     root = Path(run_dir)
     run_id = root.name
@@ -108,21 +111,25 @@ def evaluate_final_submission_gate(
     if require_cross_artifact_consistency:
         cross = evaluate_cross_artifact_consistency(root.parent.parent, run_id)
         cross_decision = cross.get("gate_decision", NOT_RUN)
-        checks.append(_check(
-            "F6_CROSS_ARTIFACT", "cross-artifact", cross_decision if cross_decision in {PASS, FAIL, NOT_RUN} else NOT_RUN,
-            "V1.0-B cross-artifact closure gate.", ["cross-artifact-consistency"]
-        ))
+        checks.append(_check("F6_CROSS_ARTIFACT", "cross-artifact", cross_decision if cross_decision in {PASS, FAIL, NOT_RUN} else NOT_RUN,
+                             "V1.0-B cross-artifact closure gate.", ["cross-artifact-consistency"]))
     else:
         checks.append(_check("F6_CROSS_ARTIFACT", "cross-artifact", NOT_RUN,
                              "Cross-artifact consistency was not required by this invocation."))
 
+    if require_reproducibility:
+        repro = evaluate_reproducibility_gate(root, rebuild_dir=rebuild_dir)
+        repro_decision = repro.get("gate_decision", NOT_RUN)
+        checks.append(_check("F7_REPRODUCIBILITY", "reproducibility", repro_decision if repro_decision in {PASS, FAIL, NOT_RUN} else NOT_RUN,
+                             "V1.0-C independent rebuild gate.", ["reproducibility-gate.json"]))
+    else:
+        checks.append(_check("F7_REPRODUCIBILITY", "reproducibility", NOT_RUN,
+                             "Reproducibility was not required by this invocation."))
+
     for rel in required_artifacts or []:
         path = root / rel
-        checks.append(_check(
-            "ARTIFACT:" + rel, "delivery", PASS if path.exists() and path.is_file() else FAIL,
-            "Required artifact exists and can be hashed." if path.exists() and path.is_file() else "Required artifact is missing.",
-            [rel],
-        ))
+        checks.append(_check("ARTIFACT:" + rel, "delivery", PASS if path.exists() and path.is_file() else FAIL,
+                             "Required artifact exists and can be hashed." if path.exists() and path.is_file() else "Required artifact is missing.", [rel]))
 
     if require_paper:
         paper_candidates = [root / "paper.pdf", root / "paper" / "main.pdf", root / "paper.docx", root / "paper" / "main.docx"]
@@ -134,11 +141,7 @@ def evaluate_final_submission_gate(
         checks.append(_check("F5_PAPER_DELIVERABLE", "delivery", NOT_RUN, "Paper deliverable was not required by this invocation."))
 
     report = _gate(checks, run_id)
-    report["artifact_hashes"] = {
-        rel: _sha256(root / rel)
-        for rel in required_artifacts or []
-        if (root / rel).is_file()
-    }
+    report["artifact_hashes"] = {rel: _sha256(root / rel) for rel in required_artifacts or [] if (root / rel).is_file()}
     return report
 
 

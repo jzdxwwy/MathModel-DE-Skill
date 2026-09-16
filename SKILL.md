@@ -14,16 +14,16 @@
 - 03 Modeling：确定性模型选择 → ModelPlan/ModelSpec/ModelComparison
 - 04 Compute：Binding Gate → ToolDispatch → 数值执行 → RunManifest/ResultBundle
 - 05 Visualization：真实结果 → Figure/Table/Equation Evidence Binding → Presentation Data Manifest → Materialization → Render Manifest → PaperEvidence
-- 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance + Independent Recompute + Evidence Lineage + Rendered Consistency + Presentation Materialization → VerificationReport
-- 07 Writing：PaperEvidence Gate 与 Presentation Gate 通过后才允许冻结证据并写论文
+- 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance + Independent Recompute + Evidence Lineage + Rendered Consistency + Presentation Materialization + Reproducibility Manifest → VerificationReport
+- 07 Writing：PaperEvidence Gate 与 Presentation Gate 通过后才允许冻结证据并写论文；PaperManifest 规定论文结构与证据映射
 
 ## 3. D/E 定位
 D/E 是先验，不是固定模板。先识别 prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision 等任务类型，再结合 D/E 知识缩小模型空间。
 
 ## 4. Runtime / Gate
-`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → PaperEvidence → Presentation Evidence → Rendered Consistency → Presentation Materialization → Render Manifest → Writing → Final`
+`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → PaperEvidence → Presentation Evidence → Rendered Consistency → Presentation Materialization → Render Manifest → PaperManifest → SubmissionManifest → Writing → Final`
 
-Gate：`Analysis → Data → Model → Binding → Compute → Verification → PaperEvidence → Presentation → RenderedConsistency → Materialization → Writing → Final`。任何关键 Gate 未通过不得标记完成。
+Gate：`Analysis → Data → Model → Binding → Compute → Verification → PaperEvidence → Presentation → RenderedConsistency → Materialization → Reproducibility → Writing → Final`。任何关键 Gate 未通过不得标记完成。
 
 ## 5. V0.8
 确定性模型选择器按七维评分选择模型：fit 25、data 15、constraints 15、interpretability 15、verifiability 15、robustness 10、cost 5。LLM 不能覆盖选择结果或任意发明工具。
@@ -64,7 +64,7 @@ V0.9-H 将验证从“证据存在性”推进到“数学验收”，使用 `ve
 明确违反数学不变量 → `FAIL`；缺少足够证据 → `NOT_RUN`；证据充分且满足规则 → `PASS`。V0.9-H 不是符号定理证明器。
 
 ## 13. V0.9-I：Evidence Materialization + Independent Recompute
-V0.9-I 将 Verification 从“检查模型自己报告的数字”推进到“独立复算数字”。`tools/verification/recompute_engine.py` 在原始证据存在时独立复算关键指标，并把结果与 ResultBundle 比较；缺少原始证据保持 `NOT_RUN``。
+V0.9-I 将 Verification 从“检查模型自己报告的数字”推进到“独立复算数字”。`tools/verification/recompute_engine.py` 在原始证据存在时独立复算关键指标，并把结果与 ResultBundle 比较；缺少原始证据保持 `NOT_RUN`。
 
 当前支持回归 MAE/RMSE/R²、分类 Accuracy。独立复算绝不覆盖原始 ResultBundle。
 
@@ -104,27 +104,30 @@ V0.9-M 将“证据绑定”进一步推进为“展示内容与权威计算结�
 
 V0.9-M 不做像素级图像比较、OCR 全表格复核或完整符号代数等价证明；它验证的是**渲染前的确定性数据契约**。缺失或无法解析的 publishable presentation binding → `FAIL`。
 
-## 18. V0.9-N：Presentation Materialization / Render Pipeline
-V0.9-N 将 PresentationDataManifest 从“校验输入”升级为“展示生成的唯一数据源”。
+## 18. V0.9-N：Reproducible Presentation / Submission Pipeline
+V0.9-N 将 PresentationDataManifest 从“校验输入”升级为“展示生成的唯一数据源”，并进一步建立论文结构映射与运行级可复现交付索引。
 
 核心链：
 
-`ResultBundle → PresentationDataManifest → Rendered Consistency → Materialized Presentation Payload → Render Manifest / SHA256 → Renderer → Final Artifact`
+`ResultBundle → PresentationDataManifest → Rendered Consistency → Materialized Presentation Payload → Render Manifest / SHA256 → Renderer → PaperManifest → Paper → SubmissionManifest`
 
 新增：
 - `tools/verification/presentation_materializer.py`
 - `artifacts/schemas/presentation-render-manifest.schema.json`
+- `tools/writing/paper_manifest_builder.py`
+- `artifacts/schemas/paper-manifest.schema.json`
+- `tools/submission/submission_manifest.py`
+- `artifacts/schemas/submission-manifest.schema.json`
 - `00_governance/V0_9_N_PRESENTATION_MATERIALIZATION.md`
 - `tests/verification/test_v09_n.py`
+- `tests/verification/test_v09_n_upgrade.py`
 
-物化器只解析 manifest 中已声明的 binding，不重新计算、不猜测、不修改 ResultBundle。每个 payload 生成 SHA256；render manifest 同时记录源 PresentationDataManifest hash、run_id、payload 路径和 payload hash。多运行按 run_id 隔离。
+物化器只解析 manifest 中已声明的 binding，不重新计算、不猜测、不修改 ResultBundle。payload 记录源 PresentationDataManifest hash 与 ResultBundle hash，并生成 SHA256；Render Manifest 记录每个 render input 的 hash。`PaperManifest` 只规定章节与 claim/figure/table/equation/render 的引用关系，不生成未经证据约束的正文。`SubmissionManifest` 记录 run、环境、已存在 artifact 的路径与 SHA256，以及上游 manifest/report 引用。
 
-V0.9-N 已接入 `tools/runtime/verification_engine.py`：V0.9-M 一致性检查通过后才执行 materialization；materialization 失败会阻断后续发布。
-
-当前仍不包含像素级视觉检查、OCR、完整符号等价和 Word/PDF 排版质量评分；这些属于后续 Final Submission Gate。
+V0.9-N 已接入 `tools/runtime/verification_engine.py`：V0.9-M 一致性通过后才执行 materialization，并在每个 run 生成 `submission-manifest.json`。缺失显式要求的交付 artifact 或 materialization 失败时必须 fail-closed。
 
 ## 19. 当前测试状态
 V0.9-N 代码、Schema、治理规范与测试夹具已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。
 
 ## 20. 下一阶段
-V1.0：Final Submission Gate。把 PaperEvidence、Presentation Evidence、Rendered Manifest、论文文稿及最终 Word/PDF 纳入统一最终验收，检查证据闭环、图表/公式一致性、引用完整性、结果冻结状态和提交文件完整性。
+V1.0：Final Submission Gate。把 PaperEvidence、Presentation Evidence、Rendered Manifest、PaperManifest、论文文稿及最终 Word/PDF/ZIP 纳入统一最终验收，检查证据闭环、图表/公式一致性、引用完整性、结果冻结状态、提交文件完整性和最终交付可重建性。

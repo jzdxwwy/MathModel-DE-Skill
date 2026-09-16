@@ -14,14 +14,14 @@
 - 03 Modeling：确定性模型选择 → ModelPlan/ModelSpec/ModelComparison
 - 04 Compute：Binding Gate → ToolDispatch → 数值执行 → RunManifest/ResultBundle
 - 05 Visualization：真实结果 → 图表/PaperEvidence
-- 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance + Independent Recompute → VerificationReport → Verification Gate
+- 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance + Independent Recompute + Evidence Lineage → VerificationReport → Verification Gate
 - 07 Writing：只使用已验证证据写论文
 
 ## 3. D/E 定位
 D/E 是先验，不是固定模板。先识别 prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision 等任务类型，再结合 D/E 知识缩小模型空间。
 
 ## 4. Runtime / Gate
-`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → VerificationReport`
+`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → VerificationReport`
 
 Gate：`Analysis → Data → Model → Binding → Compute → Verification → Writing → Final`。任何关键 Gate 未通过不得标记完成。
 
@@ -47,15 +47,7 @@ LLM 可以提出语义提示，但不能覆盖确定性模型选择，也不能�
 V0.9-E 建立通用结果验证器与执行桥，检查运行完整性、ResultBundle 状态、有限数值、模型一致性、Binding 状态及证据缺失。
 
 ## 10. V0.9-F：Domain Verification Rules
-V0.9-F 新增 `tools/verification/domain_verifier.py`，并将其接入 `result_verifier.py`。验证按模型族读取真实证据：
-
-- 回归：R²、MAE、RMSE、可复现性证据
-- 分类：Accuracy、F1
-- 时间序列：时序误差指标、预测步长绑定
-- 优化：约束可行性证据
-- 最短路径：路径与距离输出
-- Monte Carlo / 敏感性：重复次数、置信区间等证据
-- 机理/轨迹：输出存在性及稳定性附加验证
+V0.9-F 新增 `tools/verification/domain_verifier.py`，并将其接入 `result_verifier.py`。验证按模型族读取真实证据。
 
 规则采用 **evidence-first**：缺少指标或证据只能得到 `NOT_RUN`，不能被模型名称或经验自动补成 PASS。
 
@@ -64,59 +56,44 @@ V0.9-G 将领域验证从条件分支升级为注册式架构：
 
 `ResultBundle → Generic Verification → Rule Registry → Domain Rule Set → VerificationReport → Gate`
 
-新增：
-- `tools/verification/rule_registry.py`：规则集注册、模型族索引、规则解析与执行
-- `tools/verification/default_rules.py`：默认模型族规则注册表
-- `00_governance/V0_9_G_RULE_REGISTRY.md`：Registry 契约与扩展规范
-
-当前规则集：regression-v1、classification-v1、time-series-v1、optimization-v1、network-v1、stochastic-v1、mechanism-v1。
-
-规则注册具有唯一性约束：同一 model family 不允许绑定多个规则集。未注册模型保持 `NOT_RUN`，不得假定通过。Rule Registry 不修改 ResultBundle，只负责选择和执行确定性验证规则。
+新增 `tools/verification/rule_registry.py`、`tools/verification/default_rules.py` 和 `00_governance/V0_9_G_RULE_REGISTRY.md`。当前规则集覆盖 regression、classification、time-series、optimization、network、stochastic、mechanism。未注册模型保持 `NOT_RUN`。
 
 ## 12. V0.9-H：Schema-driven Mathematical Acceptance
-V0.9-H 将验证从“证据存在性”推进到“数学验收”。核心链：
+V0.9-H 将验证从“证据存在性”推进到“数学验收”，使用 `verification-rule.schema.json` 与 `rule_evaluator.py` 执行数学不变量、数值范围和证据绑定检查。
 
-`ModelSpec + DataProfile + ResultBundle + Rule Registry → Acceptance Rules → Rule Evaluator → VerificationReport → Gate`
-
-新增：
-- `artifacts/schemas/verification-rule.schema.json`：验收规则结构契约
-- `tools/verification/rule_evaluator.py`：数学不变量、数值范围和证据绑定验收器
-- `00_governance/V0_9_H_MATHEMATICAL_ACCEPTANCE.md`：V0.9-H 治理规范
-
-当前验收重点：
-- 回归：指标有限性、R² 范围、CV/验证绑定、数据泄漏检查绑定
-- 分类：Accuracy/F1 有限性与范围、CV、类别分布证据
-- 时间序列：时间顺序切分、未来信息泄漏、预测步长
-- 优化：约束可行性、目标函数有限性、约束定义、最优性证据
-- 网络：路径、距离、边合法性、权重一致性证据
-- 随机模型：重复次数、置信区间、随机种子
-
-验收语义仍保持 fail-closed：明确违反数学不变量 → `FAIL`；缺少足够证据 → `NOT_RUN`；证据充分且满足规则 → `PASS`。
-
-V0.9-H 不是符号定理证明器，不会把缺失证据自动推断为正确；其目标是建立可扩展的数学验收层。
+明确违反数学不变量 → `FAIL`；缺少足够证据 → `NOT_RUN`；证据充分且满足规则 → `PASS`。V0.9-H 不是符号定理证明器。
 
 ## 13. V0.9-I：Evidence Materialization + Independent Recompute
-V0.9-I 将 Verification 从“检查模型自己报告的数字”推进到“独立复算数字”。核心链：
+V0.9-I 将 Verification 从“检查模型自己报告的数字”推进到“独立复算数字”。`tools/verification/recompute_engine.py` 在原始证据存在时独立复算关键指标，并把结果与 ResultBundle 比较；缺少原始证据保持 `NOT_RUN`。
 
-`ResultBundle → Raw Evidence → Independent Recompute → Reported-vs-Recomputed Comparison → VerificationReport → Gate`
+当前支持回归 MAE/RMSE/R²、分类 Accuracy。独立复算绝不覆盖原始 ResultBundle。
+
+## 14. V0.9-J：Independent Recompute Expansion + Evidence Lineage
+V0.9-J 将独立复算扩展到更多模型族，并建立第一版 Evidence Lineage 图。
+
+核心链：
+
+`Raw Input → DataProfile → ModelSpec → RunManifest → ResultBundle → Independent Recompute → VerificationReport → PaperEvidence`
 
 新增：
-- `tools/verification/recompute_engine.py`：独立指标复算器
-- `00_governance/V0_9_I_INDEPENDENT_RECOMPUTE.md`：独立复算治理规范
-- `tests/verification/test_recompute_engine.py`：回归/分类独立复算测试夹具
+- `tools/verification/recompute_engine.py`：扩展 optimization、shortest_path、monte_carlo、sensitivity 的独立验收适配器
+- `artifacts/schemas/evidence-lineage.schema.json`：证据血缘图 Schema
+- `tools/verification/evidence_lineage.py`：确定性血缘构建器
+- `00_governance/V0_9_J_EVIDENCE_LINEAGE.md`：V0.9-J 治理规范
+- `tests/verification/test_v09_j.py`：V0.9-J 测试夹具
 
-当前支持：
-- 回归：从 `y_true/y_pred` 独立复算 MAE、RMSE、R²
-- 分类：从 `y_true/y_pred` 独立复算 Accuracy
-- 缺少原始证据 → `NOT_RUN`
-- 原始证据非有限或长度不一致 → `FAIL`
-- 独立复算值与 ResultBundle 报告值不一致 → `FAIL`
-- 采用显式绝对/相对容差比较
+EvidenceLineage 使用 typed nodes：`input/data/model/run/result/verification/paper_evidence/figure`；使用 typed relations：`derived_from/computed_by/verified_by/visualized_as/cited_by`。关系必须有显式依据，不能猜测。
 
-独立复算绝不覆盖原始 ResultBundle，只向 VerificationReport 增加可追溯的验收证据。当前尚未覆盖所有模型族，未支持的模型保持 `NOT_RUN`。
+V0.9-J 的独立复算覆盖：
+- optimization：目标值一致性（具备可独立评估证据时）
+- shortest_path：路径边权求和与报告距离一致性
+- monte_carlo：样本均值、95%区间一致性（具备原始样本时）
+- sensitivity：扰动/响应证据结构一致性
 
-## 14. 当前测试状态
-V0.9-I 代码、治理规范与测试夹具已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。GitHub commit 成功不等于运行时验证通过。
+缺少独立复算所需证据 → `NOT_RUN`；明确不一致 → `FAIL`。未支持模型族不自动判定通过。
 
-## 15. 下一阶段
-V0.9-J：扩展 Independent Recompute 到优化目标/约束、最短路径、Monte Carlo、敏感性和图表数据一致性，并建立统一 Evidence Lineage，使论文中的每一个关键数字都能追溯到“原始数据 → 计算 → ResultBundle → VerificationReport → PaperEvidence”。
+## 15. 当前测试状态
+V0.9-J 代码、治理规范与测试夹具已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。GitHub commit 成功不等于运行时验证通过。
+
+## 16. 下一阶段
+V0.9-K：将 `PaperEvidence` 正式升级为一等 Artifact，并建立“论文关键数字/表格/图 → VerificationReport → ResultBundle → 原始数据”的强制 Evidence Lineage Gate，防止论文写作阶段产生无法追溯的数字。

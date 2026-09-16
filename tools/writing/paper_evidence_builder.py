@@ -10,7 +10,7 @@ from typing import Any
 
 def build_paper_evidence(
     claims: list[dict[str, Any]],
-    citation_policy: str = "Every material claim must reference verification and result evidence.",
+    citation_policy: str = "Every material claim must reference verification, result, and upstream lineage evidence.",
 ) -> dict[str, Any]:
     normalized = []
     for claim in claims:
@@ -18,6 +18,9 @@ def build_paper_evidence(
             "claim_id": str(claim["claim_id"]),
             "statement": str(claim["statement"]),
             "evidence_refs": [str(x) for x in claim.get("evidence_refs", [])],
+            "verification_refs": [str(x) for x in claim.get("verification_refs", [])],
+            "result_refs": [str(x) for x in claim.get("result_refs", [])],
+            "lineage_refs": [str(x) for x in claim.get("lineage_refs", [])],
         }
         for key in ("figure_refs", "table_refs", "equation_refs"):
             if claim.get(key):

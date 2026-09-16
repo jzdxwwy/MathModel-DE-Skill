@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reproducibility Gate Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifact_type", "schema_version", "run_id", "checks", "gate_decision"],
+  "properties": {
+    "artifact_type": {"const": "ReproducibilityGateReport"},
+    "schema_version": {"const": "1.0-C"},
+    "run_id": {"type": "string", "minLength": 1},
+    "rebuild_run_id": {"type": ["string", "null"]},
+    "checks": {"type": "array", "items": {"type": "object", "required": ["check_id", "decision"], "properties": {"check_id": {"type": "string"}, "decision": {"enum": ["PASS", "FAIL", "NOT_RUN"]}, "message": {"type": "string"}, "refs": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false}},
+    "mismatches": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+    "gate_decision": {"enum": ["PASS", "FAIL", "NOT_RUN"]}
+  }
+}

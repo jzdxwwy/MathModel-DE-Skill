@@ -13,17 +13,17 @@
 - 02 Data：数据体检与语义补充 → DataProfile
 - 03 Modeling：确定性模型选择 → ModelPlan/ModelSpec/ModelComparison
 - 04 Compute：Binding Gate → ToolDispatch → 数值执行 → RunManifest/ResultBundle
-- 05 Visualization：真实结果 → 图表/PaperEvidence
-- 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance + Independent Recompute + Evidence Lineage → VerificationReport → Verification Gate
-- 07 Writing：PaperEvidence Gate 通过后才允许冻结证据并写论文
+- 05 Visualization：真实结果 → Figure/Table/Equation Evidence Binding → PaperEvidence
+- 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance + Independent Recompute + Evidence Lineage → VerificationReport
+- 07 Writing：PaperEvidence Gate 与 Presentation Evidence Gate 通过后才允许冻结证据并写论文
 
 ## 3. D/E 定位
 D/E 是先验，不是固定模板。先识别 prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision 等任务类型，再结合 D/E 知识缩小模型空间。
 
 ## 4. Runtime / Gate
-`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → VerificationReport → PaperEvidence Gate → Paper Draft`
+`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → PaperEvidence → Presentation Evidence Gate → Writing → Final`
 
-Gate：`Analysis → Data → Model → Binding → Compute → Verification → PaperEvidence → Writing → Final`。任何关键 Gate 未通过不得标记完成。
+Gate：`Analysis → Data → Model → Binding → Compute → Verification → PaperEvidence → Presentation → Writing → Final`。任何关键 Gate 未通过不得标记完成。
 
 ## 5. V0.8
 确定性模型选择器按七维评分选择模型：fit 25、data 15、constraints 15、interpretability 15、verifiability 15、robustness 10、cost 5。LLM 不能覆盖选择结果或任意发明工具。
@@ -78,28 +78,28 @@ V0.9-J 将独立复算扩展到更多模型族，并建立第一版 Evidence Lin
 ## 15. V0.9-K：PaperEvidence First-Class Artifact + Evidence Lineage Gate
 V0.9-K 将 `PaperEvidence` 从写作阶段的普通中间对象升级为一等 Artifact，并建立强制证据门禁。
 
-核心链：
+核心链：`ResultBundle → VerificationReport → EvidenceLineage → PaperEvidence → PaperEvidence Gate → Writing`
 
-`ResultBundle → VerificationReport → EvidenceLineage → PaperEvidence → PaperEvidence Gate → Writing`
+每个 material claim 必须具有 `verification_refs`、`result_refs`、`lineage_refs`。只有 PaperEvidence Gate=`PASS` 才允许进入冻结状态。
+
+## 16. V0.9-L：Figure / Table / Equation Evidence Binding
+V0.9-L 把论文中的三类呈现对象正式纳入证据体系：
+
+`Figure / Table / Equation → source_refs → result_refs → verification_refs → lineage_refs`
 
 新增：
-- `tools/writing/paper_evidence_builder.py`：构造结构化 PaperEvidence
-- `tools/verification/paper_evidence_gate.py`：论文证据门禁
-- `artifacts/schemas/paper-evidence.schema.json`：显式要求 verification/result/lineage references
-- `00_governance/V0_9_K_PAPER_EVIDENCE_GATE.md`：治理规范
-- `tests/verification/test_v09_k.py`：Gate 回归测试夹具
+- `artifacts/schemas/paper-presentation.schema.json`：统一 Figure/Table/Equation Evidence Schema
+- `tools/verification/presentation_evidence.py`：Presentation Evidence Gate
+- `tools/verification/evidence_lineage.py`：支持 figure/table/equation typed nodes 及 presentation lineage
+- `00_governance/V0_9_L_PRESENTATION_EVIDENCE.md`：V0.9-L 治理规范
+- `tests/verification/test_v09_l.py`：Presentation Evidence 回归夹具
 
-每个 material claim 必须具有：
-- `verification_refs`
-- `result_refs`
-- `lineage_refs`
+每个图、表、公式必须明确绑定来源、结果、验证报告和 lineage。任何引用缺失或无法解析都为 `FAIL`。Verification Gate 非 `PASS` 或 ResultBundle 非 `VALIDATED/FROZEN` 时，Presentation Evidence 不能通过。
 
-并且 lineage 必须能够连接到 input/data、run、result、verification 节点。Verification Gate 非 `PASS`、ResultBundle 非 `VALIDATED/FROZEN` 或 lineage 不完整时，PaperEvidence Gate 必须 `FAIL`。
+V0.9-L 目前验证的是**证据绑定和来源一致性**，还不做像素级图像比较、OCR 全表格复核或符号代数等价证明。
 
-只有 PaperEvidence Gate=`PASS` 才允许将 PaperEvidence 标记为 `FROZEN` 并进入论文写作阶段。语言模型不得自行补造证据来源。
+## 17. 当前测试状态
+V0.9-L 代码、Schema、治理规范与测试夹具已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。GitHub commit 成功不等于运行时验证通过。
 
-## 16. 当前测试状态
-V0.9-K 代码、Schema、治理规范与测试夹具已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。GitHub commit 成功不等于运行时验证通过。
-
-## 17. 下一阶段
-V0.9-L：把 PaperEvidence Gate 接入完整 Writing Pipeline，并建立 Figure/Table/Equation Evidence Binding，使“论文数字、表格、图、公式 → EvidenceLineage → Verification”形成完整闭环，再进入最终提交门禁。
+## 18. 下一阶段
+V0.9-M：Rendered Artifact Consistency。对表格数值、图表数据 manifest、公式与 ModelSpec 建立确定性一致性检查，确保“论文里展示出来的东西”与真正计算结果逐项一致，然后进入 V1.0 Final Submission Gate。

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Presentation Render Manifest",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "source_manifest_sha256", "items", "gate_decision"],
+  "properties": {
+    "artifact_type": {"const": "PresentationRenderManifest"},
+    "schema_version": {"const": "0.9-N"},
+    "source_manifest_sha256": {"type": "string", "minLength": 64, "maxLength": 64},
+    "result_run_id": {"type": ["string", "null"]},
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["evidence_id", "kind", "payload_ref", "payload_sha256"],
+        "properties": {
+          "evidence_id": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["figure", "table", "equation"]},
+          "render_ref": {"type": ["string", "null"]},
+          "payload_ref": {"type": "string", "minLength": 1},
+          "payload_sha256": {"type": "string", "minLength": 64, "maxLength": 64}
+        },
+        "additionalProperties": false
+      }
+    },
+    "errors": {"type": "array", "items": {"type": "string"}},
+    "gate_decision": {"enum": ["PASS", "FAIL", "NOT_RUN"]}
+  },
+  "additionalProperties": false
+}

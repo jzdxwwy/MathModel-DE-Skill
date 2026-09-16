@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExecutionReplayResult",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "run_id", "status", "adapter_id", "tool", "result_bundle_sha256", "execution_log_sha256"],
+  "properties": {
+    "artifact_type": {"const": "ExecutionReplayResult"},
+    "schema_version": {"const": "1.0-H"},
+    "run_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["EXECUTED", "BLOCKED", "FAILED"]},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "tool": {"type": "string", "minLength": 1},
+    "isolation_id": {"type": "string"},
+    "lock_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "environment_fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "input_hashes": {"type": "array"},
+    "execution_log_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "result_bundle_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": false
+}

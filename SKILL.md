@@ -13,17 +13,17 @@
 - 02 Data：数据体检与语义补充 → DataProfile
 - 03 Modeling：确定性模型选择 → ModelPlan/ModelSpec/ModelComparison
 - 04 Compute：Binding Gate → ToolDispatch → 数值执行 → RunManifest/ResultBundle
-- 05 Visualization：真实结果 → Figure/Table/Equation Evidence Binding → PaperEvidence
-- 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance + Independent Recompute + Evidence Lineage → VerificationReport
-- 07 Writing：PaperEvidence Gate 与 Presentation Evidence Gate 通过后才允许冻结证据并写论文
+- 05 Visualization：真实结果 → Figure/Table/Equation Evidence Binding → Presentation Data Manifest → PaperEvidence
+- 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance + Independent Recompute + Evidence Lineage + Rendered Consistency → VerificationReport
+- 07 Writing：PaperEvidence Gate 与 Presentation Gate 通过后才允许冻结证据并写论文
 
 ## 3. D/E 定位
 D/E 是先验，不是固定模板。先识别 prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision 等任务类型，再结合 D/E 知识缩小模型空间。
 
 ## 4. Runtime / Gate
-`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → PaperEvidence → Presentation Evidence Gate → Writing → Final`
+`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → PaperEvidence → Presentation Evidence → Rendered Consistency → Writing → Final`
 
-Gate：`Analysis → Data → Model → Binding → Compute → Verification → PaperEvidence → Presentation → Writing → Final`。任何关键 Gate 未通过不得标记完成。
+Gate：`Analysis → Data → Model → Binding → Compute → Verification → PaperEvidence → Presentation → RenderedConsistency → Writing → Final`。任何关键 Gate 未通过不得标记完成。
 
 ## 5. V0.8
 确定性模型选择器按七维评分选择模型：fit 25、data 15、constraints 15、interpretability 15、verifiability 15、robustness 10、cost 5。LLM 不能覆盖选择结果或任意发明工具。
@@ -87,19 +87,25 @@ V0.9-L 把论文中的三类呈现对象正式纳入证据体系：
 
 `Figure / Table / Equation → source_refs → result_refs → verification_refs → lineage_refs`
 
+新增 `artifacts/schemas/paper-presentation.schema.json`、`tools/verification/presentation_evidence.py`、`tools/verification/evidence_lineage.py`、`00_governance/V0_9_L_PRESENTATION_EVIDENCE.md` 与测试夹具。每个图、表、公式必须明确绑定来源、结果、验证报告和 lineage；任何引用缺失或无法解析都为 `FAIL`。
+
+## 17. V0.9-M：Rendered Artifact Consistency
+V0.9-M 将“证据绑定”进一步推进为“展示内容与权威计算结果逐项一致”。核心链：
+
+`ResultBundle / ModelSpec → PresentationDataManifest → Rendered Consistency Verifier → PresentationConsistencyReport → Presentation Gate`
+
 新增：
-- `artifacts/schemas/paper-presentation.schema.json`：统一 Figure/Table/Equation Evidence Schema
-- `tools/verification/presentation_evidence.py`：Presentation Evidence Gate
-- `tools/verification/evidence_lineage.py`：支持 figure/table/equation typed nodes 及 presentation lineage
-- `00_governance/V0_9_L_PRESENTATION_EVIDENCE.md`：V0.9-L 治理规范
-- `tests/verification/test_v09_l.py`：Presentation Evidence 回归夹具
+- `artifacts/schemas/presentation-data-manifest.schema.json`
+- `tools/verification/rendered_consistency.py`
+- `00_governance/V0_9_M_RENDERED_CONSISTENCY.md`
+- `tests/verification/test_v09_m.py`
 
-每个图、表、公式必须明确绑定来源、结果、验证报告和 lineage。任何引用缺失或无法解析都为 `FAIL`。Verification Gate 非 `PASS` 或 ResultBundle 非 `VALIDATED/FROZEN` 时，Presentation Evidence 不能通过。
+当前检查：表格物化数值与 ResultBundle output/metric 的一致性及容差；图表数据 binding 是否可解析到 ResultBundle；公式的 ModelSpec 引用及规范化表达式 hash 一致性。
 
-V0.9-L 目前验证的是**证据绑定和来源一致性**，还不做像素级图像比较、OCR 全表格复核或符号代数等价证明。
+V0.9-M 不做像素级图像比较、OCR 全表格复核或完整符号代数等价证明；它验证的是**渲染前的确定性数据契约**。缺失或无法解析的 publishable presentation binding → `FAIL`。
 
-## 17. 当前测试状态
-V0.9-L 代码、Schema、治理规范与测试夹具已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。GitHub commit 成功不等于运行时验证通过。
+## 18. 当前测试状态
+V0.9-M 代码、Schema、治理规范与测试夹具已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。
 
-## 18. 下一阶段
-V0.9-M：Rendered Artifact Consistency。对表格数值、图表数据 manifest、公式与 ModelSpec 建立确定性一致性检查，确保“论文里展示出来的东西”与真正计算结果逐项一致，然后进入 V1.0 Final Submission Gate。
+## 19. 下一阶段
+V0.9-N：Presentation Materialization / Render Pipeline。将 PresentationDataManifest 真正作为图、表、公式生成器的唯一数据源，并产生 render manifest/hash，使“计算结果 → 展示数据 → 渲染文件”形成可追溯闭环，然后进入 V1.0 Final Submission Gate。

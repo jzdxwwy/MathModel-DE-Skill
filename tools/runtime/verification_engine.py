@@ -56,10 +56,11 @@ def verify_executions(project_dir: str | Path, executions: list[dict], dispatch:
                     report["gate_decision"] = "FAIL"
                     report["status"] = "DRAFT"
                 render_manifest = materialize_presentation(root, presentation_manifest, result)
-                report["presentation_render_manifest_ref"] = str(root / "artifacts" / "presentation-render-manifest.json")
+                report["presentation_render_manifest_ref"] = str(run_dir / "presentation-render-manifest.json")
                 if render_manifest.get("gate_decision") == "FAIL":
                     report["gate_decision"] = "FAIL"
                     report["status"] = "DRAFT"
+                report["critical_issues"] = [c["evidence"] for c in report["checks"] if c["status"] == "FAIL"]
         path = persist_report(run_dir, report); report["artifact_ref"] = str(path); reports.append(report)
     summary = root / "artifacts" / "verification-summary.json"; summary.parent.mkdir(parents=True, exist_ok=True)
     summary.write_text(json.dumps({"artifact_type":"VerificationSummary","schema_version":"0.9-N","acceptance_version":"0.9-H","recompute_version":"0.9-I","lineage_version":"0.9-J","presentation_consistency_version":"0.9-M","presentation_materialization_version":"0.9-N","rule_registry":registry.manifest(),"reports":reports}, ensure_ascii=False, indent=2), encoding="utf-8")

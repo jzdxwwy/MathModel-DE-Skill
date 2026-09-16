@@ -14,14 +14,14 @@
 - 03 Modeling：确定性模型选择 → ModelPlan/ModelSpec/ModelComparison
 - 04 Compute：Binding Gate → ToolDispatch → 数值执行 → RunManifest/ResultBundle
 - 05 Visualization：真实结果 → 图表/PaperEvidence
-- 06 Verification：ResultBundle 独立核验 → VerificationReport → Verification Gate
+- 06 Verification：通用核验 + Domain Rules → VerificationReport → Verification Gate
 - 07 Writing：只使用已验证证据写论文
 
 ## 3. D/E 定位
 D/E 是先验，不是固定模板。先识别 prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision 等任务类型，再结合 D/E 知识缩小模型空间。
 
 ## 4. Runtime / Gate
-`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → VerificationReport`
+`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Verification → VerificationReport`
 
 Gate：`Analysis → Data → Model → Binding → Compute → Verification → Writing → Final`。任何关键 Gate 未通过不得标记完成。
 
@@ -44,25 +44,27 @@ Binding Resolver 只使用 DataProfile 的确定性事实和已验证语义角�
 LLM 可以提出语义提示，但不能覆盖确定性模型选择，也不能绕过 Binding Gate。`BLOCKED → INPUT_BLOCKED` 是正常的 fail-closed 状态。
 
 ## 9. V0.9-E：ResultBundle → VerificationReport
-V0.9-E 新增确定性结果验证器 `tools/verification/result_verifier.py` 与执行桥 `tools/runtime/verification_engine.py`。
+V0.9-E 建立通用结果验证器与执行桥，检查运行完整性、ResultBundle 状态、有限数值、模型一致性、Binding 状态及证据缺失。
 
-### 自动验证内容
-- RunManifest 与 ResultBundle 是否完整
-- ResultBundle 是否为 `VALIDATED`
-- 输出和指标是否出现 NaN/Inf
-- Dispatch 的 `model_id` 与 ResultBundle 是否一致
-- Binding 是否被阻断
-- 敏感性、稳健性是否具有真实证据；没有证据必须保持 `NOT_RUN`
+## 10. V0.9-F：Domain Verification Rules
+V0.9-F 新增 `tools/verification/domain_verifier.py`，并将其接入 `result_verifier.py`。验证不再只停留在通用 sanity check，而是按模型族读取真实证据：
 
-### Verification Gate
-- 全部 PASS → `PASS`
-- 无 FAIL，但存在 WARN/NOT_RUN → `PASS_WITH_WARNINGS`
-- 存在 FAIL → `FAIL`
+- 回归：R²、MAE、RMSE、可复现性证据
+- 分类：Accuracy、F1
+- 时间序列：时序误差指标、预测步长绑定
+- 优化：约束可行性证据
+- 最短路径：路径与距离输出
+- Monte Carlo / 敏感性：重复次数、置信区间等证据
+- 机理/轨迹：输出存在性及稳定性附加验证
 
-任何 `FAIL` 都不能进入后续“已验证结果”状态。Verifier 不修改计算结果，不根据模型名称推断正确性。
+规则采用 **evidence-first**：缺少指标或证据只能得到 `NOT_RUN`，不能被模型名称或经验自动补成 PASS。
 
-## 10. 当前测试状态
-V0.9-E 代码与治理文件已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。GitHub commit 成功不等于运行时验证通过。
+Verification Gate 仍采用：全部 PASS → `PASS`；无 FAIL 但有 WARN/NOT_RUN → `PASS_WITH_WARNINGS`；任一 FAIL → `FAIL`。
 
-## 11. 下一阶段
-V0.9-F：建立 **Domain Verification Rules**。把回归、分类、时间序列、优化、网络、随机模拟等模型族的单位、约束、残差、交叉验证、敏感性、稳健性、复现性检查注册为规则，使 Verification 从通用 sanity check 升级为数学模型级验收。
+详细契约见 `00_governance/V0_9_F_DOMAIN_VERIFICATION.md`。
+
+## 11. 当前测试状态
+V0.9-F 代码与治理文件已写入 GitHub。当前环境没有实际执行 pytest，因此不能声称测试通过。GitHub commit 成功不等于运行时验证通过。
+
+## 12. 下一阶段
+V0.9-G：把 Domain Rules 从单文件条件分支升级为 **Rule Registry + Schema-driven Verification**，并补齐单位量纲、约束逐项核验、残差诊断、交叉验证泄漏、随机种子/重复次数一致性、图表数据一致性等可复用规则，同时建立单元测试与历史题回归测试夹具。

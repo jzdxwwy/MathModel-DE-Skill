@@ -38,12 +38,16 @@ def materialize_presentation(
     result: dict[str, Any],
 ) -> dict[str, Any]:
     root = Path(project_dir)
-    out_dir = root / "presentation" / "materialized"
+    run_id = str(result.get("run_id") or "unknown-run")
+    out_dir = root / "presentation" / "materialized" / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
     items: list[dict[str, Any]] = []
     errors: list[str] = []
 
     for item in manifest.get("items", []) or []:
+        item_run_id = item.get("run_id")
+        if item_run_id is not None and str(item_run_id) != run_id:
+            continue
         evidence_id = str(item.get("evidence_id", "unknown"))
         kind = str(item.get("kind", "unknown"))
         payload_bindings: list[dict[str, Any]] = []
@@ -99,7 +103,7 @@ def materialize_presentation(
         "errors": errors,
         "gate_decision": decision,
     }
-    manifest_path = root / "artifacts" / "presentation-render-manifest.json"
+    manifest_path = root / "runs" / run_id / "presentation-render-manifest.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(render_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return render_manifest

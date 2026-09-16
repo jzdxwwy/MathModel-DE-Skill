@@ -62,10 +62,32 @@ V1.0-C 的原则：
 
 V1.0 Final Submission Gate 已新增 `F7_REPRODUCIBILITY`，默认要求 V1.0-C 通过。也就是说，最终提交级 PASS 不再仅代表“证据齐全”，还要求存在独立重建并与冻结结果一致。
 
-当前 C 是**确定性验收器**，不直接执行任意项目代码。后续可以继续增加容器化环境、依赖锁定、clean-room rebuild、数据集 hash closure 和 command replay。
+## 22. V1.0-D：Automatic Clean Rebuild
+V1.0-D 把 V1.0-C 中“人工提供 rebuild_dir”的机制推进到 Runtime 层。
 
-## 22. 当前测试状态
-V1.0-C 的代码、Schema、治理规范与回归测试已写入 GitHub。当前环境没有实际执行 pytest，因此不能声称测试通过。
+核心链：
+`Frozen Run → RebuildContract → Input Hash Verification → Registered Tool → Fresh Rebuild Run → Rebuilt ResultBundle → V1.0-C Reproducibility Gate`
 
-## 23. 后续 V1.0-D
-下一阶段应把“独立重建”真正接入 Runtime：自动生成 Rebuild Contract，冻结输入/代码/环境，执行 clean rebuild，并将重建产物直接送入 V1.0-C Gate，而不是依赖人工提供 rebuild 目录。
+新增：
+- `artifacts/schemas/rebuild-contract.schema.json`
+- `tools/runtime/rebuild_engine.py`
+- `tests/verification/test_v10_d_rebuild_engine.py`
+- `00_governance/V1_0_D_AUTOMATIC_CLEAN_REBUILD.md`
+
+V1.0-D 的硬约束：
+- RebuildContract 必须明确 reference run、model、registered tool、输入文件 SHA256、参数、环境和预期结果身份；
+- 输入文件 hash 不一致 → `BLOCKED/FAIL`，不得继续执行；
+- tool 不在 `ToolRegistry` → `BLOCKED/FAIL`；
+- 禁止 arbitrary shell，禁止通过 contract 注入自由命令；
+- 每次重建使用新的 `rebuild-*` run 目录；
+- Frozen/reference ResultBundle 不得被覆盖或修改；
+- Runtime 产生的重建 ResultBundle 仍必须交给 V1.0-C 做确定性结果比较；
+- GitHub 中写入 Runtime 代码不等于已经完成一次真实重建，真实执行必须由受信任 Host/Runtime 提供 ToolRegistry。
+
+因此 V1.0-D 不是“自动跑任意代码”，而是把可执行边界锁定在已有的 ToolRegistry 上，形成可审计的 clean rebuild。
+
+## 23. 当前测试状态
+V1.0-D 的代码、Schema、治理规范与回归测试已写入 GitHub。当前环境没有实际执行 pytest，因此不能声称 V1.0-C/D 测试通过。
+
+## 24. 下一阶段
+V1.0-E 应进一步解决 **Environment Closure / Clean-Room Rebuild**：冻结 Python 与依赖版本、输入数据全集 hash、代码/工具版本 hash，并由受信任 Host 创建隔离重建环境；之后把环境一致性结果纳入 V1.0-C 与 Final Submission Gate。

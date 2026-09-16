@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EnvironmentAdapterRegistry",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "adapters"],
+  "properties": {
+    "artifact_type": {"const": "EnvironmentAdapterRegistry"},
+    "schema_version": {"const": "1.0-G"},
+    "adapters": {"type": "array", "items": {"type": "object", "required": ["adapter_id", "kind", "trusted", "capabilities"], "properties": {"adapter_id": {"type": "string"}, "kind": {"type": "string"}, "trusted": {"type": "boolean"}, "implementation_ref": {"type": "string"}, "capabilities": {"type": "object", "required": ["isolation", "network", "shell"], "properties": {"isolation": {"type": "boolean"}, "network": {"type": "boolean"}, "shell": {"type": "boolean"}}, "additionalProperties": false}}, "additionalProperties": false}}
+  },
+  "additionalProperties": false
+}

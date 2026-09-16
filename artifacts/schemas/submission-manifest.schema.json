@@ -10,6 +10,7 @@
     "problem_hash": {"type": ["string", "null"]},
     "attachment_hashes": {"type": "array", "items": {"type": "string"}},
     "git_commit": {"type": ["string", "null"]},
+    "git_commit": {"type": ["string", "null"]},
     "environment": {"type": "object"},
     "artifacts": {
       "type": "array",
@@ -28,6 +29,7 @@
     "presentation_manifest_ref": {"type": ["string", "null"]},
     "render_manifest_refs": {"type": "array", "items": {"type": "string"}},
     "verification_report_refs": {"type": "array", "items": {"type": "string"}},
+    "missing_artifacts": {"type": "array", "items": {"type": "string"}},
     "gate_decision": {"enum": ["PASS", "FAIL", "NOT_RUN"]}
   },
   "additionalProperties": false

@@ -15,15 +15,15 @@
 - 04 Compute：Binding Gate → ToolDispatch → 数值执行 → RunManifest/ResultBundle
 - 05 Visualization：真实结果 → 图表/PaperEvidence
 - 06 Verification：通用核验 + Domain Rule Registry + Mathematical Acceptance + Independent Recompute + Evidence Lineage → VerificationReport → Verification Gate
-- 07 Writing：只使用已验证证据写论文
+- 07 Writing：PaperEvidence Gate 通过后才允许冻结证据并写论文
 
 ## 3. D/E 定位
 D/E 是先验，不是固定模板。先识别 prediction、evaluation、optimization、classification、clustering、simulation、mechanism、network、risk、comprehensive_decision 等任务类型，再结合 D/E 知识缩小模型空间。
 
 ## 4. Runtime / Gate
-`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → VerificationReport`
+`Input Boundary → ProblemSpec → ProblemMap → DataProfile → ModelPlan → ModelSpec → Deterministic Binding → ToolDispatch → ToolRegistry → Numerical Adapter → ResultBundle → Domain Rule Registry → Mathematical Acceptance → Independent Recompute → Evidence Lineage → VerificationReport → PaperEvidence Gate → Paper Draft`
 
-Gate：`Analysis → Data → Model → Binding → Compute → Verification → Writing → Final`。任何关键 Gate 未通过不得标记完成。
+Gate：`Analysis → Data → Model → Binding → Compute → Verification → PaperEvidence → Writing → Final`。任何关键 Gate 未通过不得标记完成。
 
 ## 5. V0.8
 确定性模型选择器按七维评分选择模型：fit 25、data 15、constraints 15、interpretability 15、verifiability 15、robustness 10、cost 5。LLM 不能覆盖选择结果或任意发明工具。
@@ -71,29 +71,35 @@ V0.9-I 将 Verification 从“检查模型自己报告的数字”推进到“�
 ## 14. V0.9-J：Independent Recompute Expansion + Evidence Lineage
 V0.9-J 将独立复算扩展到更多模型族，并建立第一版 Evidence Lineage 图。
 
+核心链：`Raw Input → DataProfile → ModelSpec → RunManifest → ResultBundle → Independent Recompute → VerificationReport → PaperEvidence`
+
+新增独立复算扩展、EvidenceLineage Schema、确定性 lineage builder、治理规范和测试夹具。EvidenceLineage 使用 typed nodes：`input/data/model/run/result/verification/paper_evidence/figure`；关系必须有显式依据，不能猜测。
+
+## 15. V0.9-K：PaperEvidence First-Class Artifact + Evidence Lineage Gate
+V0.9-K 将 `PaperEvidence` 从写作阶段的普通中间对象升级为一等 Artifact，并建立强制证据门禁。
+
 核心链：
 
-`Raw Input → DataProfile → ModelSpec → RunManifest → ResultBundle → Independent Recompute → VerificationReport → PaperEvidence`
+`ResultBundle → VerificationReport → EvidenceLineage → PaperEvidence → PaperEvidence Gate → Writing`
 
 新增：
-- `tools/verification/recompute_engine.py`：扩展 optimization、shortest_path、monte_carlo、sensitivity 的独立验收适配器
-- `artifacts/schemas/evidence-lineage.schema.json`：证据血缘图 Schema
-- `tools/verification/evidence_lineage.py`：确定性血缘构建器
-- `00_governance/V0_9_J_EVIDENCE_LINEAGE.md`：V0.9-J 治理规范
-- `tests/verification/test_v09_j.py`：V0.9-J 测试夹具
+- `tools/writing/paper_evidence_builder.py`：构造结构化 PaperEvidence
+- `tools/verification/paper_evidence_gate.py`：论文证据门禁
+- `artifacts/schemas/paper-evidence.schema.json`：显式要求 verification/result/lineage references
+- `00_governance/V0_9_K_PAPER_EVIDENCE_GATE.md`：治理规范
+- `tests/verification/test_v09_k.py`：Gate 回归测试夹具
 
-EvidenceLineage 使用 typed nodes：`input/data/model/run/result/verification/paper_evidence/figure`；使用 typed relations：`derived_from/computed_by/verified_by/visualized_as/cited_by`。关系必须有显式依据，不能猜测。
+每个 material claim 必须具有：
+- `verification_refs`
+- `result_refs`
+- `lineage_refs`
 
-V0.9-J 的独立复算覆盖：
-- optimization：目标值一致性（具备可独立评估证据时）
-- shortest_path：路径边权求和与报告距离一致性
-- monte_carlo：样本均值、95%区间一致性（具备原始样本时）
-- sensitivity：扰动/响应证据结构一致性
+并且 lineage 必须能够连接到 input/data、run、result、verification 节点。Verification Gate 非 `PASS`、ResultBundle 非 `VALIDATED/FROZEN` 或 lineage 不完整时，PaperEvidence Gate 必须 `FAIL`。
 
-缺少独立复算所需证据 → `NOT_RUN`；明确不一致 → `FAIL`。未支持模型族不自动判定通过。
+只有 PaperEvidence Gate=`PASS` 才允许将 PaperEvidence 标记为 `FROZEN` 并进入论文写作阶段。语言模型不得自行补造证据来源。
 
-## 15. 当前测试状态
-V0.9-J 代码、治理规范与测试夹具已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。GitHub commit 成功不等于运行时验证通过。
+## 16. 当前测试状态
+V0.9-K 代码、Schema、治理规范与测试夹具已写入 GitHub，但当前环境没有实际执行 pytest，因此不能声称测试通过。GitHub commit 成功不等于运行时验证通过。
 
-## 16. 下一阶段
-V0.9-K：将 `PaperEvidence` 正式升级为一等 Artifact，并建立“论文关键数字/表格/图 → VerificationReport → ResultBundle → 原始数据”的强制 Evidence Lineage Gate，防止论文写作阶段产生无法追溯的数字。
+## 17. 下一阶段
+V0.9-L：把 PaperEvidence Gate 接入完整 Writing Pipeline，并建立 Figure/Table/Equation Evidence Binding，使“论文数字、表格、图、公式 → EvidenceLineage → Verification”形成完整闭环，再进入最终提交门禁。

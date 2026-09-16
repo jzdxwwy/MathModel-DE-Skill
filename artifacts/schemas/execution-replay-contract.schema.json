@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExecutionReplayContract",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "run_id", "adapter_id", "tool", "input_hashes", "policy"],
+  "properties": {
+    "artifact_type": {"const": "ExecutionReplayContract"},
+    "schema_version": {"const": "1.0-H"},
+    "run_id": {"type": "string", "minLength": 1},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "tool": {"type": "string", "minLength": 1},
+    "input_hashes": {"type": "array", "items": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}, "additionalProperties": false}},
+    "expected_lock_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "expected_environment_fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "policy": {"type": "object", "required": ["allow_network", "allow_shell", "isolation_required"], "properties": {"allow_network": {"const": false}, "allow_shell": {"const": false}, "isolation_required": {"type": "boolean"}}, "additionalProperties": false},
+    "payload": {"type": "object"}
+  },
+  "additionalProperties": false
+}

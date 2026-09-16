@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Automatic Clean Rebuild Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifact_type", "schema_version", "run_id", "model_id", "tool", "inputs", "parameters", "expected_result"],
+  "properties": {
+    "artifact_type": {"const": "RebuildContract"},
+    "schema_version": {"const": "1.0-D"},
+    "run_id": {"type": "string", "minLength": 1},
+    "model_id": {"type": "string", "minLength": 1},
+    "tool": {"type": "string", "minLength": 1},
+    "inputs": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"}}}},
+    "parameters": {"type": "object"},
+    "environment": {"type": "object", "additionalProperties": true},
+    "expected_result": {"type": "object", "additionalProperties": false, "required": ["model_id", "schema_version"], "properties": {"model_id": {"type": "string", "minLength": 1}, "schema_version": {"type": "string", "minLength": 1}}},
+    "policy": {"type": "object", "additionalProperties": false, "properties": {"allow_network": {"type": "boolean"}, "allow_shell": {"type": "boolean"}}}
+  }
+}

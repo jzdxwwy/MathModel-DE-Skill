@@ -1,9 +1,4 @@
-"""V1.0 deterministic Final Submission Gate.
-
-The gate aggregates existing evidence artifacts. It never invents missing
-results and never turns NOT_RUN into PASS. A publishable submission requires
-all mandatory checks to PASS.
-"""
+"""V1.0 deterministic Final Submission Gate."""
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
@@ -11,6 +6,7 @@ import hashlib, json
 from .cross_artifact_consistency import evaluate_cross_artifact_consistency
 from .reproducibility_gate import evaluate_reproducibility_gate
 from .environment_gate import evaluate_environment_gate
+from .execution_evidence_gate import evaluate_execution_evidence_gate
 
 PASS, FAIL, NOT_RUN = "PASS", "FAIL", "NOT_RUN"
 
@@ -39,20 +35,15 @@ def _gate(checks: list[dict[str, Any]], run_id: str) -> dict[str, Any]:
 def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: list[str] | None = None,
     require_paper: bool = False, require_submission_manifest: bool = True,
     require_cross_artifact_consistency: bool = True, require_reproducibility: bool = True,
-    require_environment_closure: bool = True, rebuild_dir: str | Path | None = None) -> dict[str, Any]:
-    """Evaluate persisted evidence for final submission.
-
-    V1.0-E adds a mandatory environment-closure gate by default. Environment
-    metadata alone never proves isolation; a real clean-room rebuild still
-    requires a trusted runtime/adapter and a supplied rebuild closure.
-    """
+    require_environment_closure: bool = True, require_clean_room_execution: bool = True,
+    rebuild_dir: str | Path | None = None) -> dict[str, Any]:
+    """Evaluate persisted evidence; NOT_RUN never becomes PASS."""
     root = Path(run_dir); run_id = root.name; checks: list[dict[str, Any]] = []
     result = _read_json(root / "result-bundle.json")
     verification = _read_json(root / "verification-report.json")
     render = _read_json(root / "presentation-render-manifest.json")
     submission = _read_json(root / "submission-manifest.json")
-    checks.append(_check("F1_RESULT_BUNDLE", "evidence", PASS if result and result.get("status") in {"VALIDATED", "FROZEN"} else FAIL,
-                         "ResultBundle must exist and be VALIDATED/FROZEN.", ["result-bundle.json"]))
+    checks.append(_check("F1_RESULT_BUNDLE", "evidence", PASS if result and result.get("status") in {"VALIDATED", "FROZEN"} else FAIL, "ResultBundle must exist and be VALIDATED/FROZEN.", ["result-bundle.json"]))
     if verification is None: checks.append(_check("F2_VERIFICATION", "verification", NOT_RUN, "VerificationReport missing.", ["verification-report.json"]))
     else:
         decision = str(verification.get("gate_decision") or verification.get("decision") or NOT_RUN)
@@ -60,8 +51,7 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
     if render is None: checks.append(_check("F3_RENDER_MANIFEST", "presentation", NOT_RUN, "PresentationRenderManifest missing.", ["presentation-render-manifest.json"]))
     else:
         decision = str(render.get("gate_decision", NOT_RUN)); checks.append(_check("F3_RENDER_MANIFEST", "presentation", decision if decision in {PASS, FAIL, NOT_RUN} else NOT_RUN, "Presentation render materialization gate.", ["presentation-render-manifest.json"]))
-    checks.append(_check("F4_SUBMISSION_MANIFEST", "reproducibility", PASS if submission else (FAIL if require_submission_manifest else NOT_RUN),
-                         "SubmissionManifest is required for V1.0." if require_submission_manifest else "SubmissionManifest is optional in this invocation.", ["submission-manifest.json"]))
+    checks.append(_check("F4_SUBMISSION_MANIFEST", "reproducibility", PASS if submission else (FAIL if require_submission_manifest else NOT_RUN), "SubmissionManifest is required for V1.0." if require_submission_manifest else "SubmissionManifest is optional in this invocation.", ["submission-manifest.json"]))
     if require_cross_artifact_consistency:
         cross = evaluate_cross_artifact_consistency(root.parent.parent, run_id); d = cross.get("gate_decision", NOT_RUN)
         checks.append(_check("F6_CROSS_ARTIFACT", "cross-artifact", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-B cross-artifact closure gate.", ["cross-artifact-consistency"]))
@@ -74,6 +64,10 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
         env = evaluate_environment_gate(root, rebuild_dir=rebuild_dir); d = env.get("gate_decision", NOT_RUN)
         checks.append(_check("F8_ENVIRONMENT_CLOSURE", "environment", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-E environment closure gate.", ["environment-gate.json", "environment-closure.json"]))
     else: checks.append(_check("F8_ENVIRONMENT_CLOSURE", "environment", NOT_RUN, "Environment closure was not required by this invocation."))
+    if require_clean_room_execution:
+        execution = evaluate_execution_evidence_gate(root, rebuild_dir=rebuild_dir); d = execution.get("gate_decision", NOT_RUN)
+        checks.append(_check("F9_CLEAN_ROOM_EXECUTION", "environment", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-G trusted-host execution evidence gate.", ["execution-evidence-gate.json", "execution-evidence.json"]))
+    else: checks.append(_check("F9_CLEAN_ROOM_EXECUTION", "environment", NOT_RUN, "Clean-room execution evidence was not required by this invocation."))
     for rel in required_artifacts or []:
         path = root / rel; exists = path.exists() and path.is_file()
         checks.append(_check("ARTIFACT:" + rel, "delivery", PASS if exists else FAIL, "Required artifact exists and can be hashed." if exists else "Required artifact is missing.", [rel]))

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DependencyLockManifest",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "lock_id", "adapter_id", "python", "packages", "fingerprint"],
+  "properties": {
+    "artifact_type": {"const": "DependencyLockManifest"},
+    "schema_version": {"const": "1.0-G"},
+    "lock_id": {"type": "string", "minLength": 1},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "python": {"type": "object", "required": ["implementation", "version"], "properties": {"implementation": {"type": "string"}, "version": {"type": "string"}}, "additionalProperties": false},
+    "packages": {"type": "array", "items": {"type": "object", "required": ["name", "version"], "properties": {"name": {"type": "string"}, "version": {"type": "string"}, "source": {"type": "string"}, "hash": {"type": "string"}}, "additionalProperties": false}},
+    "tools": {"type": "array", "items": {"type": "object", "required": ["name", "version"], "properties": {"name": {"type": "string"}, "version": {"type": "string"}, "ref": {"type": "string"}}, "additionalProperties": false}},
+    "base_image": {"type": "string"},
+    "source_files": {"type": "array", "items": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}, "additionalProperties": false}},
+    "fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": false
+}

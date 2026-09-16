@@ -7,6 +7,7 @@ from .cross_artifact_consistency import evaluate_cross_artifact_consistency
 from .reproducibility_gate import evaluate_reproducibility_gate
 from .environment_gate import evaluate_environment_gate
 from .execution_evidence_gate import evaluate_execution_evidence_gate
+from .execution_replay_gate import evaluate_execution_replay_gate
 
 PASS, FAIL, NOT_RUN = "PASS", "FAIL", "NOT_RUN"
 
@@ -36,7 +37,7 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
     require_paper: bool = False, require_submission_manifest: bool = True,
     require_cross_artifact_consistency: bool = True, require_reproducibility: bool = True,
     require_environment_closure: bool = True, require_clean_room_execution: bool = True,
-    rebuild_dir: str | Path | None = None) -> dict[str, Any]:
+    require_execution_replay: bool = True, rebuild_dir: str | Path | None = None) -> dict[str, Any]:
     """Evaluate persisted evidence; NOT_RUN never becomes PASS."""
     root = Path(run_dir); run_id = root.name; checks: list[dict[str, Any]] = []
     result = _read_json(root / "result-bundle.json")
@@ -68,6 +69,10 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
         execution = evaluate_execution_evidence_gate(root, rebuild_dir=rebuild_dir); d = execution.get("gate_decision", NOT_RUN)
         checks.append(_check("F9_CLEAN_ROOM_EXECUTION", "environment", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-G trusted-host execution evidence gate.", ["execution-evidence-gate.json", "execution-evidence.json"]))
     else: checks.append(_check("F9_CLEAN_ROOM_EXECUTION", "environment", NOT_RUN, "Clean-room execution evidence was not required by this invocation."))
+    if require_execution_replay:
+        replay = evaluate_execution_replay_gate(rebuild_dir or root); d = replay.get("gate_decision", NOT_RUN)
+        checks.append(_check("F10_EXECUTION_REPLAY", "execution", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-H controlled execution replay gate.", ["execution-replay-result.json", "execution-log.json", "result-bundle.json"]))
+    else: checks.append(_check("F10_EXECUTION_REPLAY", "execution", NOT_RUN, "Execution replay was not required by this invocation."))
     for rel in required_artifacts or []:
         path = root / rel; exists = path.exists() and path.is_file()
         checks.append(_check("ARTIFACT:" + rel, "delivery", PASS if exists else FAIL, "Required artifact exists and can be hashed." if exists else "Required artifact is missing.", [rel]))

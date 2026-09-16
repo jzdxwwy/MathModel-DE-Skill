@@ -10,7 +10,6 @@
     "problem_hash": {"type": ["string", "null"]},
     "attachment_hashes": {"type": "array", "items": {"type": "string"}},
     "git_commit": {"type": ["string", "null"]},
-    "git_commit": {"type": ["string", "null"]},
     "environment": {"type": "object"},
     "artifacts": {
       "type": "array",

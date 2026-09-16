@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EnvironmentAdapterContract",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "adapter_id", "kind", "policy"],
+  "properties": {
+    "artifact_type": {"const": "EnvironmentAdapterContract"},
+    "schema_version": {"const": "1.0-F"},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "kind": {"enum": ["HOST", "VENV", "CONDA", "DOCKER", "GITHUB_ACTIONS", "CUSTOM"]},
+    "policy": {
+      "type": "object",
+      "required": ["allow_network", "allow_shell", "isolation_required"],
+      "properties": {
+        "allow_network": {"type": "boolean"},
+        "allow_shell": {"type": "boolean"},
+        "isolation_required": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "definition": {"type": "object"},
+    "expected_fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": false
+}

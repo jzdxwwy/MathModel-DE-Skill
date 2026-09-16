@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VenvMaterializationEvidence",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "materialization_id", "adapter_id", "status", "fresh", "target_dir", "interpreter", "python", "host", "policy", "lock_hash", "interpreter_sha256", "fingerprint"],
+  "properties": {
+    "artifact_type": {"const": "VenvMaterializationEvidence"},
+    "schema_version": {"const": "1.0-I"},
+    "materialization_id": {"type": "string", "minLength": 1},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "status": {"const": "MATERIALIZED"},
+    "fresh": {"const": true},
+    "target_dir": {"type": "string", "minLength": 1},
+    "interpreter": {"type": "string", "minLength": 1},
+    "python": {"type": "object", "required": ["implementation", "version"], "properties": {"implementation": {"type": "string"}, "version": {"type": "string"}}, "additionalProperties": false},
+    "host": {"type": "object", "required": ["os", "release", "machine"], "properties": {"os": {"type": "string"}, "release": {"type": "string"}, "machine": {"type": "string"}}, "additionalProperties": false},
+    "policy": {"type": "object", "required": ["allow_network", "allow_shell", "isolation_required"], "properties": {"allow_network": {"const": false}, "allow_shell": {"const": false}, "isolation_required": {"const": true}}, "additionalProperties": false},
+    "lock_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "interpreter_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": false
+}

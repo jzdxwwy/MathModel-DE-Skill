@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExecutionEvidence",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "execution_id", "execution_status", "adapter_id", "isolation_id", "lock_hash", "environment_fingerprint", "tool_ref", "input_hashes", "execution_log_hash", "result_bundle_hash", "observed_at"],
+  "properties": {
+    "artifact_type": {"const": "ExecutionEvidence"},
+    "schema_version": {"const": "1.0-G"},
+    "execution_id": {"type": "string", "minLength": 1},
+    "execution_status": {"enum": ["SUCCESS", "FAILED", "BLOCKED"]},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "isolation_id": {"type": "string", "minLength": 1},
+    "lock_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "environment_fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "tool_ref": {"type": "string", "minLength": 1},
+    "input_hashes": {"type": "array", "items": {"type": "string", "pattern": "^[a-f0-9]{64}$"}},
+    "execution_log_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "result_bundle_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "observed_at": {"type": "string", "minLength": 1},
+    "command_identity": {"type": "string"},
+    "adapter_kind": {"type": "string"}
+  },
+  "additionalProperties": false
+}

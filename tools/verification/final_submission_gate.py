@@ -11,6 +11,8 @@ from typing import Any
 import hashlib
 import json
 
+from .cross_artifact_consistency import evaluate_cross_artifact_consistency
+
 PASS = "PASS"
 FAIL = "FAIL"
 NOT_RUN = "NOT_RUN"
@@ -59,6 +61,7 @@ def evaluate_final_submission_gate(
     required_artifacts: list[str] | None = None,
     require_paper: bool = False,
     require_submission_manifest: bool = True,
+    require_cross_artifact_consistency: bool = True,
 ) -> dict[str, Any]:
     """Evaluate a run directory using existing persisted evidence.
 
@@ -101,6 +104,17 @@ def evaluate_final_submission_gate(
     else:
         checks.append(_check("F4_SUBMISSION_MANIFEST", "reproducibility", PASS if submission else NOT_RUN,
                              "SubmissionManifest is optional in this invocation.", ["submission-manifest.json"]))
+
+    if require_cross_artifact_consistency:
+        cross = evaluate_cross_artifact_consistency(root.parent.parent, run_id)
+        cross_decision = cross.get("gate_decision", NOT_RUN)
+        checks.append(_check(
+            "F6_CROSS_ARTIFACT", "cross-artifact", cross_decision if cross_decision in {PASS, FAIL, NOT_RUN} else NOT_RUN,
+            "V1.0-B cross-artifact closure gate.", ["cross-artifact-consistency"]
+        ))
+    else:
+        checks.append(_check("F6_CROSS_ARTIFACT", "cross-artifact", NOT_RUN,
+                             "Cross-artifact consistency was not required by this invocation."))
 
     for rel in required_artifacts or []:
         path = root / rel

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Paper Manifest",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "sections"],
+  "properties": {
+    "artifact_type": {"const": "PaperManifest"},
+    "schema_version": {"const": "0.9-N"},
+    "paper_id": {"type": "string"},
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["section_id", "title", "claim_refs"],
+        "properties": {
+          "section_id": {"type": "string", "minLength": 1},
+          "title": {"type": "string", "minLength": 1},
+          "claim_refs": {"type": "array", "items": {"type": "string"}},
+          "figure_refs": {"type": "array", "items": {"type": "string"}},
+          "table_refs": {"type": "array", "items": {"type": "string"}},
+          "equation_refs": {"type": "array", "items": {"type": "string"}},
+          "render_refs": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

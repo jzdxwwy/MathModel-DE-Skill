@@ -172,3 +172,36 @@ F12 不意味着模型工具已经在 venv 中运行；它只证明声明的依�
 V1.0-J 的 Schema、固定参数安装器、EnvironmentInventory、DependencyMaterializationEvidence、Gate、F12 与回归测试已写入 GitHub。本次会话**没有实际运行 pytest，也没有在真实执行机安装依赖**，因此不能声称 J 已运行通过。
 
 下一阶段进入 V1.0-K：将一个已注册建模工具绑定到**固定的 venv module entrypoint**，在目标 venv 中真正执行，并把 ResultBundle、Execution Log、Observed EnvironmentClosure、ExecutionEvidence、V1.0-C Reproducibility 自动闭环起来。核心 Skill 仍禁止 arbitrary shell。
+
+
+## 34. V1.0-K：Venv Tool Execution
+V1.0-K 首次把“依赖环境已经物化”推进到“已注册建模工具真正运行在目标 venv 进程中”。核心链：
+
+VenvToolExecutionContract → input hash verification → trusted module resolver → target venv Python → registered ToolRegistry id → ResultBundle → execution log → VenvToolExecutionEvidence → VenvToolExecutionGate。
+
+新增：
+- artifacts/schemas/venv-tool-execution-contract.schema.json
+- artifacts/schemas/venv-tool-execution-evidence.schema.json
+- tools/runtime/venv_tool_executor.py
+- tools/runtime/venv_tool_entrypoint.py
+- tools/verification/venv_tool_execution_gate.py
+- tests/verification/test_v10_k_venv_execution.py
+- 00_governance/V1_0_K_VENV_TOOL_EXECUTION.md
+
+### 34.1 固定 EntryPoint
+Host 只允许调用固定 Python module，并通过显式 argv 传递已验证的 tool id、payload path、output path。模型不能提供 Python source、-c code、shell syntax 或任意 import path。
+
+### 34.2 Evidence
+K 证据闭合 run_id、adapter_id、tool、interpreter、isolation_id、input hashes、DependencyLock hash、observed environment fingerprint、ResultBundle hash 与 execution log hash。
+
+### 34.3 Final Submission Gate
+新增 F13 VENV_TOOL_EXECUTION。现在最终执行链已经达到：
+Fresh venv → Locked Dependencies → Observed Environment → Registered Tool → Venv Process → ResultBundle。
+
+### 34.4 边界
+K 只证明工具已经在目标 venv 进程中运行；它尚未把 K 的结果自动接入既有 ExecutionEvidence、ExecutionReplay 与 V1.0-C Reproducibility Gate。该闭环留给 V1.0-L。
+
+## 35. V1.0-K 当前状态
+K 的 Contract、Evidence、固定 EntryPoint、Venv Executor、Gate、F13 与回归测试已写入 GitHub。本次会话没有实际运行 pytest，也没有在真实 venv 中执行完整建模工具，因此不能声称 K 已运行通过。特别是目标 venv 是否包含某个具体建模工具所需的第三方依赖，必须由 J 的 locked dependency materialization 先行保证。
+
+下一阶段 V1.0-L：统一 K 的 ResultBundle / Execution Log / Evidence 与 G/H/C 现有证据链，消除重复 ResultBundle 构造，并让 K 的实际 venv execution 自动进入 Reproducibility comparison。

@@ -205,3 +205,32 @@ K 只证明工具已经在目标 venv 进程中运行；它尚未把 K 的结果
 K 的 Contract、Evidence、固定 EntryPoint、Venv Executor、Gate、F13 与回归测试已写入 GitHub。本次会话没有实际运行 pytest，也没有在真实 venv 中执行完整建模工具，因此不能声称 K 已运行通过。特别是目标 venv 是否包含某个具体建模工具所需的第三方依赖，必须由 J 的 locked dependency materialization 先行保证。
 
 下一阶段 V1.0-L：统一 K 的 ResultBundle / Execution Log / Evidence 与 G/H/C 现有证据链，消除重复 ResultBundle 构造，并让 K 的实际 venv execution 自动进入 Reproducibility comparison。
+
+
+## 36. V1.0-L：Evidence Unification + Reproducibility Closure
+V1.0-L 解决 K 与既有 G/H/C 证据链并行的问题。核心链：
+
+K ResultBundle + K Execution Log + G/H/K raw evidence → UnifiedExecutionEvidence → EvidenceUnificationGate → V1.0-C compare_result_bundles → ReproducibilityClosureReport。
+
+新增：
+- artifacts/schemas/unified-execution-evidence.schema.json
+- tools/verification/execution_evidence_unifier.py
+- tools/verification/evidence_unification_gate.py
+- tools/verification/reproducibility_closure.py
+- tests/verification/test_v10_l_evidence.py
+- 00_governance/V1_0_L_EVIDENCE_UNIFICATION.md
+
+### 36.1 Canonical Evidence
+UnifiedExecutionEvidence 是下游 PaperEvidence、SubmissionManifest 和 Final Submission 应引用的统一执行证据。G/H/K 原始 evidence 不删除，保留为 source_evidence。
+
+### 36.2 Hash Closure
+L 不执行代码、不重新计算模型、不修改 ResultBundle。ResultBundle 与 execution-log 的 SHA256 均从实际文件重新计算；lock/environment/tool/interpreter/isolation/input 等身份来自已有执行证据。
+
+### 36.3 Reproducibility Closure
+L 复用 V1.0-C 的 compare_result_bundles，沿用 atol=1e-8、rtol=1e-6，不重新发明比较规则。reference 与 rebuild 的 ResultBundle 只有在现有比较契约下完全一致才允许 PASS。
+
+### 36.4 Final Submission Gate
+新增 F14 EVIDENCE_UNIFICATION。Final Submission Gate 在发现 K execution evidence 时自动尝试生成 UnifiedExecutionEvidence，然后进行统一证据 Gate 检查。
+
+## 37. V1.0-L 当前状态
+L 的 canonical schema、unifier、gate、reproducibility closure、回归测试与 F14 已写入 GitHub。本次会话仍**没有实际运行 pytest**，因此不能声称 L 已测试通过。下一阶段 V1.0-M 应继续解决 run-directory topology、统一 execution.log/result-bundle 的单一来源，并让 UnifiedExecutionEvidence 成为 PaperEvidence、SubmissionManifest 与最终交付的唯一执行证据引用。

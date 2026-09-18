@@ -27,6 +27,13 @@ def evaluate_dependency_materialization_gate(run_dir:str|Path, *, lock_path:str|
     ip=root/"environment-inventory.json"
     if not ep.is_file() or not ip.is_file():
         return {"artifact_type":"DependencyMaterializationGateReport","schema_version":"1.0-J","gate_decision":"NOT_RUN","reasons":["missing dependency evidence or environment inventory"]}
+    if lock_path is None:
+        for candidate in (root/"dependency-lock.json", root/"artifacts"/"dependency-lock.json", root/"lock.json"):
+            if candidate.is_file():
+                lock_path = candidate
+                break
+        if lock_path is None:
+            return {"artifact_type":"DependencyMaterializationGateReport","schema_version":"1.0-J","gate_decision":"NOT_RUN","reasons":["missing DependencyLockManifest for authoritative comparison"]}
     try:
         evidence=json.loads(ep.read_text(encoding="utf-8")); inventory=json.loads(ip.read_text(encoding="utf-8"))
         lock=json.loads(Path(lock_path).read_text(encoding="utf-8")) if lock_path else None
@@ -34,6 +41,8 @@ def evaluate_dependency_materialization_gate(run_dir:str|Path, *, lock_path:str|
         return {"artifact_type":"DependencyMaterializationGateReport","schema_version":"1.0-J","gate_decision":"FAIL","reasons":[f"invalid evidence/inventory/lock: {exc}"]}
     reasons=[]
     if evidence.get("status")!="INSTALLED": reasons.append("dependency status is not INSTALLED")
+    if not lock:
+        reasons.append("DependencyLockManifest could not be loaded")
     if evidence.get("lock_hash") and lock:
         body=dict(lock); expected=body.pop("fingerprint",None)
         actual=hashlib.sha256(_canonical(body).encode("utf-8")).hexdigest()

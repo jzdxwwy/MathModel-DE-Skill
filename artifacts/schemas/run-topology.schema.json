@@ -1,0 +1,25 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"RunTopology",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["artifact_type","schema_version","run_id","reference_dir","rebuild_dirs","replay_dirs","canonical_artifacts"],
+  "properties":{
+    "artifact_type":{"const":"RunTopology"},
+    "schema_version":{"const":"1.0-M"},
+    "run_id":{"type":"string","minLength":1},
+    "reference_dir":{"type":"string","minLength":1},
+    "rebuild_dirs":{"type":"array","items":{"type":"string"}},
+    "replay_dirs":{"type":"array","items":{"type":"string"}},
+    "canonical_artifacts":{
+      "type":"object",
+      "additionalProperties":false,
+      "required":["result_bundle","execution_log","unified_execution_evidence"],
+      "properties":{
+        "result_bundle":{"const":"execution/result-bundle.json"},
+        "execution_log":{"const":"execution/execution.log"},
+        "unified_execution_evidence":{"const":"execution/unified-execution-evidence.json"}
+      }
+    }
+  }
+}

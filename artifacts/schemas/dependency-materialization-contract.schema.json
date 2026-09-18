@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DependencyMaterializationContract",
+  "type": "object",
+  "required": ["artifact_type","schema_version","materialization_id","adapter_id","venv_dir","interpreter","lock_hash","packages","policy"],
+  "properties": {
+    "artifact_type": {"const":"DependencyMaterializationContract"},
+    "schema_version": {"const":"1.0-J"},
+    "materialization_id": {"type":"string","minLength":1},
+    "adapter_id": {"type":"string","minLength":1},
+    "venv_dir": {"type":"string","minLength":1},
+    "interpreter": {"type":"string","minLength":1},
+    "lock_hash": {"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "packages": {
+      "type":"array",
+      "items":{
+        "type":"object",
+        "required":["name","version"],
+        "properties":{
+          "name":{"type":"string","pattern":"^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+          "version":{"type":"string","minLength":1},
+          "hash":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+          "source":{"type":"string","minLength":1}
+        },
+        "additionalProperties":false
+      }
+    },
+    "wheelhouse": {"type":"string"},
+    "policy": {
+      "type":"object",
+      "required":["allow_network","allow_shell","require_hashes"],
+      "properties":{
+        "allow_network":{"const":false},
+        "allow_shell":{"const":false},
+        "require_hashes":{"type":"boolean"}
+      },
+      "additionalProperties":false
+    }
+  },
+  "additionalProperties":false
+}

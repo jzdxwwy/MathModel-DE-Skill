@@ -13,6 +13,7 @@ from .dependency_materialization_gate import evaluate_dependency_materialization
 from .venv_tool_execution_gate import evaluate_venv_tool_execution_gate
 from .execution_evidence_unifier import unify
 from .evidence_unification_gate import evaluate_evidence_unification_gate
+from .unified_reproducibility_gate import evaluate_unified_reproducibility_gate
 
 PASS, FAIL, NOT_RUN = "PASS", "FAIL", "NOT_RUN"
 
@@ -47,8 +48,11 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
     rebuild_dir: str | Path | None = None) -> dict[str, Any]:
     """Evaluate persisted evidence; NOT_RUN never becomes PASS."""
     root = Path(run_dir); run_id = root.name; checks: list[dict[str, Any]] = []
-    result = _read_json(root / "result-bundle.json")
-    verification = _read_json(root / "verification-report.json")
+    # V1.0-M canonical topology with backward-compatible legacy root fallback.
+    canonical = root / "reference" / "execution"
+    evidence_root = canonical if canonical.is_dir() else root
+    result = _read_json(evidence_root / "result-bundle.json")
+    verification = _read_json((root / "reference" / "verification" / "verification-report.json") if (root / "reference" / "verification" / "verification-report.json").is_file() else root / "verification-report.json")
     render = _read_json(root / "presentation-render-manifest.json")
     submission = _read_json(root / "submission-manifest.json")
     checks.append(_check("F1_RESULT_BUNDLE", "evidence", PASS if result and result.get("status") in {"VALIDATED", "FROZEN"} else FAIL, "ResultBundle must exist and be VALIDATED/FROZEN.", ["result-bundle.json"]))
@@ -78,7 +82,7 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
     else: checks.append(_check("F9_CLEAN_ROOM_EXECUTION", "environment", NOT_RUN, "Clean-room execution evidence was not required by this invocation."))
     replay_root = Path(rebuild_dir) if rebuild_dir else root
     if require_execution_replay:
-        replay = evaluate_execution_replay_gate(replay_root); d = replay.get("gate_decision", NOT_RUN)
+        replay = evaluate_execution_replay_gate((replay_root / "execution") if (replay_root / "execution").is_dir() else replay_root); d = replay.get("gate_decision", NOT_RUN)
         checks.append(_check("F10_EXECUTION_REPLAY", "execution", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-H controlled execution replay gate.", ["execution-replay-result.json", "execution-log.json", "result-bundle.json"]))
     else: checks.append(_check("F10_EXECUTION_REPLAY", "execution", NOT_RUN, "Execution replay was not required by this invocation."))
     if require_host_materialization:
@@ -96,12 +100,12 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
     else:
         checks.append(_check("F13_VENV_TOOL_EXECUTION", "execution", NOT_RUN, "Venv tool execution was not required by this invocation."))
     try:
-        if (replay_root / "venv-tool-execution-evidence.json").is_file() and not (replay_root / "unified-execution-evidence.json").is_file():
+        if not (replay_root / "execution" / "unified-execution-evidence.json").is_file() and not (replay_root / "unified-execution-evidence.json").is_file():
             unify(replay_root)
     except Exception:
         pass
-    if (replay_root / "venv-tool-execution-evidence.json").is_file() or (replay_root / "unified-execution-evidence.json").is_file():
-        u = evaluate_evidence_unification_gate(replay_root); d = u.get("gate_decision", NOT_RUN)
+    if (replay_root / "execution" / "unified-execution-evidence.json").is_file() or (replay_root / "unified-execution-evidence.json").is_file():
+        u = evaluate_evidence_unification_gate((replay_root / "execution") if (replay_root / "execution").is_dir() else replay_root); d = u.get("gate_decision", NOT_RUN)
         checks.append(_check("F14_EVIDENCE_UNIFICATION", "evidence", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-L canonical execution evidence gate.", ["unified-execution-evidence.json"]))
     else:
         checks.append(_check("F14_EVIDENCE_UNIFICATION", "evidence", NOT_RUN, "No K/G/H execution evidence available for V1.0-L unification."))\n    for rel in required_artifacts or []:

@@ -234,3 +234,73 @@ L 复用 V1.0-C 的 compare_result_bundles，沿用 atol=1e-8、rtol=1e-6，不�
 
 ## 37. V1.0-L 当前状态
 L 的 canonical schema、unifier、gate、reproducibility closure、回归测试与 F14 已写入 GitHub。本次会话仍**没有实际运行 pytest**，因此不能声称 L 已测试通过。下一阶段 V1.0-M 应继续解决 run-directory topology、统一 execution.log/result-bundle 的单一来源，并让 UnifiedExecutionEvidence 成为 PaperEvidence、SubmissionManifest 与最终交付的唯一执行证据引用。
+
+
+## 38. V1.0-M：Run Topology + Single Source of Execution Truth
+V1.0-M 不再继续增加平行 execution evidence，而是进行架构收敛：统一运行目录、规范日志名称、统一 ResultBundle 构造，并把“结果身份 + 执行身份”一起纳入复现闭环。
+
+核心链：
+
+`RunTopology → reference/rebuild/replay → canonical execution/ → ResultBundle + execution.log → UnifiedExecutionEvidence → UnifiedReproducibilityGate`
+
+### 38.1 Canonical Run Topology
+新增：
+- `artifacts/schemas/run-topology.schema.json`
+- `tools/runtime/run_layout.py`
+
+规范运行根目录：
+```
+<run_root>/
+├── run-topology.json
+├── reference/
+│   ├── execution/
+│   │   ├── result-bundle.json
+│   │   ├── execution.log
+│   │   └── unified-execution-evidence.json
+│   └── verification/
+├── rebuild/<rebuild_id>/
+└── replay/<replay_id>/
+```
+
+M 允许读取历史 `execution-log.json`，但新执行的规范输出统一为 `execution/execution.log`。
+
+### 38.2 ResultBundle Single Source
+新增 `tools/runtime/result_bundle_builder.py`。Venv 固定 EntryPoint 不再自行维护第二套 ResultBundle 结构，而统一调用 builder。
+
+原则：
+1. ResultBundle 是计算结果的唯一规范载体；
+2. execution adapter 不得定义另一套结果协议；
+3. ResultBundle 不因 verification/reproducibility 结果而被修改；
+4. 历史结果可以兼容读取，但新产出必须遵循 canonical schema。
+
+### 38.3 Unified Execution Evidence
+L 的 UnifiedExecutionEvidence 进一步迁移到 canonical `execution/` 目录。Unifier 会优先读取 canonical execution evidence，同时兼容历史根目录证据。
+
+下游应只引用 UnifiedExecutionEvidence；K/G/H raw evidence 只作为 `source_evidence` 保留。
+
+### 38.4 Unified Reproducibility Gate
+新增 `tools/verification/unified_reproducibility_gate.py`。
+
+M 同时检查：
+- reference 与 rebuild 均存在 UnifiedExecutionEvidence；
+- execution_status 均为 SUCCESS；
+- tool_ref 一致；
+- input hashes 一致；
+- lock_hash 一致；
+- environment_fingerprint 一致；
+- ResultBundle 使用 V1.0-C `compare_result_bundles` 独立比较。
+
+因此 M 的 PASS 不是单纯“数值相同”，而是“数值结果相同 + 执行身份闭合”。
+
+### 38.5 Final Submission Gate
+新增 F15 `UNIFIED_REPRODUCIBILITY`。当调用 Final Submission Gate 时，如果提供 rebuild_dir，则 F15 同时检查结果身份与执行身份；没有 rebuild_dir 时保持 `NOT_RUN`，不把缺证据当作 PASS。
+
+### 38.6 安全边界
+M 不增加 shell/network/arbitrary-code 权限。RunTopology、ResultBundle Builder、Evidence Unifier 与 Unified Reproducibility Gate 都是确定性文件/证据处理组件。
+
+## 39. V1.0-M 当前状态
+M 的 RunTopology schema、RunLayout、ResultBundle Builder、canonical Venv EntryPoint、canonical execution log、UnifiedExecutionEvidence 迁移、UnifiedReproducibilityGate 与 F15 已写入 GitHub。
+
+本次会话**没有实际运行 pytest，也没有执行真实 venv 建模任务**，因此不能声称 M 已测试通过。
+
+下一阶段应优先进入 **V1.0-N：PaperEvidence / Presentation / Submission 的 Single Evidence Reference Migration**，而不是继续无上限增加 Final Gate 编号。N 的重点是让论文、图表、表格、SubmissionManifest 全部只接受 UnifiedExecutionEvidence 作为执行事实入口，并增加冲突证据 fail-closed 规则。

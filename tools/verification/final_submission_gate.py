@@ -14,6 +14,7 @@ from .venv_tool_execution_gate import evaluate_venv_tool_execution_gate
 from .execution_evidence_unifier import unify
 from .evidence_unification_gate import evaluate_evidence_unification_gate
 from .unified_reproducibility_gate import evaluate_unified_reproducibility_gate
+from .submission_evidence_closure import evaluate_submission_evidence_closure
 
 PASS, FAIL, NOT_RUN = "PASS", "FAIL", "NOT_RUN"
 
@@ -95,6 +96,13 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
         d = dep.get("gate_decision", NOT_RUN)
         checks.append(_check("F12_DEPENDENCY_MATERIALIZATION", "environment", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-J locked dependency installation and observed inventory gate.", ["dependency-materialization-evidence.json", "environment-inventory.json"]))
     else: checks.append(_check("F12_DEPENDENCY_MATERIALIZATION", "environment", NOT_RUN, "Dependency materialization was not required by this invocation."))
+    # V1.0-N: publication artifacts must reference canonical UnifiedExecutionEvidence.
+    n = evaluate_submission_evidence_closure(root)
+    nd = n.get("gate_decision", NOT_RUN)
+    checks.append(_check("F16_SINGLE_EVIDENCE_REFERENCE", "evidence",
+                         nd if nd in {PASS, FAIL, NOT_RUN} else NOT_RUN,
+                         "V1.0-N single-source execution evidence closure.",
+                         ["unified-execution-evidence.json", "submission-evidence-closure.json"]))
     if require_unified_reproducibility and rebuild_dir is not None:
         ref_exec = (root / "reference" / "execution") if (root / "reference" / "execution").is_dir() else root
         reb_exec = (Path(rebuild_dir) / "execution") if (Path(rebuild_dir) / "execution").is_dir() else Path(rebuild_dir)

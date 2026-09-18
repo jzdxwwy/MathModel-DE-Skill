@@ -110,3 +110,65 @@ V1.0-I 的 Contract、Venv Adapter、Materialization Evidence、Materialization 
 
 ## 30. 下一阶段
 V1.0-J 应进入 **Locked Dependency Installation + Observed Environment Inventory**：使用受信任 Host 的固定 argv 安装器严格依据 DependencyLockManifest 安装依赖，禁止模型生成安装命令；安装后从 venv 自身解释器采集 package inventory，并与 lock 做确定性比较。随后再把 V1.0-H ExecutionReplay 接到 venv 内固定 entrypoint，最终形成真正的 `fresh venv → locked dependencies → observed environment → registered tool execution → ResultBundle → independent recompute` 闭环。
+
+
+## 31. V1.0-J：Locked Dependency Installation + Observed Environment Inventory
+V1.0-J 把 V1.0-I 的“venv 已创建”推进到“依赖闭包已经实际安装，并由目标解释器反向盘点”。核心链：
+
+`DependencyLockManifest → DependencyMaterializationContract → Fresh venv → Fixed-Argv Installer → Local Wheelhouse → EnvironmentInventory → DependencyMaterializationEvidence → DependencyMaterializationGate`
+
+### 31.1 DependencyMaterializationContract
+新增 `artifacts/schemas/dependency-materialization-contract.schema.json`，冻结：
+- venv 解释器；
+- DependencyLock fingerprint；
+- 精确 package name/version；
+- 可选 package SHA256；
+- local wheelhouse；
+- `allow_network=false`；
+- `allow_shell=false`；
+- `require_hashes`。
+
+### 31.2 Fixed-Argv Installer
+新增 `tools/runtime/dependency_installer.py`。
+
+安装器只允许受信任 Host 调用固定参数向量：
+`venv-python -m ensurepip --upgrade` → `venv-python -m pip install --no-index ...`。
+
+使用 `subprocess.run(..., shell=False)`，不接受模型生成的命令字符串；网络关闭时，非空依赖集合必须提供 local wheelhouse。package name/version 在进入 argv 前进行白名单格式校验。
+
+如果 `require_hashes=true`，每个锁定 package 必须带 SHA256，并通过 pip `--require-hashes` 强制校验。
+
+### 31.3 Observed Environment Inventory
+新增 `tools/runtime/environment_inventory.py` 与 `artifacts/schemas/environment-inventory.schema.json`。
+
+盘点必须由**目标 venv 自身解释器**执行，使用 `importlib.metadata` 获取实际安装 package/version，排序后生成 fingerprint。这样不是“相信 lock”，而是“观察实际环境”。
+
+### 31.4 Dependency Materialization Evidence / Gate
+新增：
+- `artifacts/schemas/dependency-materialization-evidence.schema.json`；
+- `tools/verification/dependency_materialization_gate.py`。
+
+Gate 对每个 lock package 做精确 version 比对，并验证 lock hash、inventory fingerprint、interpreter identity。缺少证据为 `NOT_RUN`，安装失败或实际环境与 lock 不一致为 `FAIL`。
+
+### 31.5 Final Submission Gate
+新增 F12：`DEPENDENCY_MATERIALIZATION`。
+
+最终环境链现在进一步成为：
+`F11 Host Materialization → F12 Locked Dependency Materialization → F10 Execution Replay → Reproducibility`。
+
+F12 不意味着模型工具已经在 venv 中运行；它只证明声明的依赖环境已经被受控安装并被目标解释器观察到。
+
+## 32. V1.0-J 安全边界
+- 不允许 LLM 生成 pip/shell 命令；
+- shell/network 默认关闭；
+- 默认使用 local wheelhouse，不从公网解析依赖；
+- package name/version/hash 在执行前校验；
+- reference ResultBundle 不参与覆盖或修改；
+- EnvironmentInventory 必须来自目标 venv interpreter；
+- venv 仍不是 OS/container 安全边界；
+- J 仍不执行建模 ToolRegistry callable，跨进程建模执行留给下一阶段。
+
+## 33. V1.0-J 当前测试状态与下一阶段
+V1.0-J 的 Schema、固定参数安装器、EnvironmentInventory、DependencyMaterializationEvidence、Gate、F12 与回归测试已写入 GitHub。本次会话**没有实际运行 pytest，也没有在真实执行机安装依赖**，因此不能声称 J 已运行通过。
+
+下一阶段进入 V1.0-K：将一个已注册建模工具绑定到**固定的 venv module entrypoint**，在目标 venv 中真正执行，并把 ResultBundle、Execution Log、Observed EnvironmentClosure、ExecutionEvidence、V1.0-C Reproducibility 自动闭环起来。核心 Skill 仍禁止 arbitrary shell。

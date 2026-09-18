@@ -304,3 +304,46 @@ M 的 RunTopology schema、RunLayout、ResultBundle Builder、canonical Venv Ent
 本次会话**没有实际运行 pytest，也没有执行真实 venv 建模任务**，因此不能声称 M 已测试通过。
 
 下一阶段应优先进入 **V1.0-N：PaperEvidence / Presentation / Submission 的 Single Evidence Reference Migration**，而不是继续无上限增加 Final Gate 编号。N 的重点是让论文、图表、表格、SubmissionManifest 全部只接受 UnifiedExecutionEvidence 作为执行事实入口，并增加冲突证据 fail-closed 规则。
+
+
+## 40. V1.0-N：Paper / Presentation / Submission Single Evidence Reference
+V1.0-N 的重点不是增加新的计算能力，而是切断论文与交付材料对 G/H/K 并行 execution evidence 的旁路引用。
+
+核心链：
+
+`ResultBundle → UnifiedExecutionEvidence → PaperEvidence → PresentationDataManifest → PaperManifest → SubmissionManifest → Final Submission`
+
+### 40.1 Canonical Evidence Source
+新增：
+- `artifacts/schemas/paper-evidence-source.schema.json`
+- `artifacts/schemas/submission-evidence-closure.schema.json`
+- `tools/verification/paper_evidence_closure.py`
+- `tools/verification/submission_evidence_closure.py`
+
+规范：
+1. ResultBundle 是结果唯一规范载体；
+2. UnifiedExecutionEvidence 是执行事实唯一规范引用；
+3. PaperEvidence 的 claims 必须能追溯到 canonical UnifiedExecutionEvidence；
+4. Presentation、PaperManifest、SubmissionManifest 不得直接引用 G/H/K legacy evidence；
+5. legacy evidence 只能作为 UnifiedExecutionEvidence 的 source_evidence 保留。
+
+### 40.2 Fail-Closed
+N 发现以下情况不允许进入 PASS：
+- 缺少 UnifiedExecutionEvidence；
+- PaperEvidence claim 没有 canonical execution evidence ref；
+- 发布材料直接引用 execution-evidence.json、venv-tool-execution-evidence.json 或 execution-replay-result.json；
+- canonical evidence 与发布材料的引用关系缺失。
+
+N 不删除历史 evidence，也不修改 Frozen ResultBundle 来消除冲突。
+
+### 40.3 Final Submission Gate
+新增 F16：`SINGLE_EVIDENCE_REFERENCE`。
+
+F16 的作用不是重新验证数值，而是确认“论文/图表/提交材料到底引用了哪一个执行事实源”。
+
+### 40.4 测试与状态
+新增 `tests/verification/test_v10_n_single_evidence.py`，覆盖 canonical reference PASS 和 legacy reference FAIL。
+
+本次会话没有实际运行 pytest，因此不能声称 N 已运行通过。
+
+N 完成后，下一阶段应重点做 **V1.0-O：Evidence Conflict Resolution + Claim-Level Lineage Closure**，把“引用了统一证据”进一步推进到“每个论文结论、数字、图表、公式都有明确 claim-level lineage，并对冲突 evidence fail-closed”。

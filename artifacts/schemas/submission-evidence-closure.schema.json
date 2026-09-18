@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"SubmissionEvidenceClosure",
+  "type":"object","additionalProperties":false,
+  "required":["artifact_type","schema_version","gate_decision","checked_refs","violations"],
+  "properties":{
+    "artifact_type":{"const":"SubmissionEvidenceClosure"},
+    "schema_version":{"const":"1.0-N"},
+    "gate_decision":{"enum":["PASS","FAIL","NOT_RUN"]},
+    "checked_refs":{"type":"array","items":{"type":"string"}},
+    "violations":{"type":"array","items":{"type":"object"}}
+  }
+}

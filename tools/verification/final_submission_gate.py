@@ -10,6 +10,7 @@ from .execution_evidence_gate import evaluate_execution_evidence_gate
 from .execution_replay_gate import evaluate_execution_replay_gate
 from .materialization_gate import evaluate_materialization_gate
 from .dependency_materialization_gate import evaluate_dependency_materialization_gate
+from .venv_tool_execution_gate import evaluate_venv_tool_execution_gate
 
 PASS, FAIL, NOT_RUN = "PASS", "FAIL", "NOT_RUN"
 
@@ -40,7 +41,7 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
     require_cross_artifact_consistency: bool = True, require_reproducibility: bool = True,
     require_environment_closure: bool = True, require_clean_room_execution: bool = True,
     require_execution_replay: bool = True, require_host_materialization: bool = True,
-    require_dependency_materialization: bool = True,
+    require_dependency_materialization: bool = True, require_venv_tool_execution: bool = True,
     rebuild_dir: str | Path | None = None) -> dict[str, Any]:
     """Evaluate persisted evidence; NOT_RUN never becomes PASS."""
     root = Path(run_dir); run_id = root.name; checks: list[dict[str, Any]] = []
@@ -87,7 +88,7 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
         d = dep.get("gate_decision", NOT_RUN)
         checks.append(_check("F12_DEPENDENCY_MATERIALIZATION", "environment", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-J locked dependency installation and observed inventory gate.", ["dependency-materialization-evidence.json", "environment-inventory.json"]))
     else: checks.append(_check("F12_DEPENDENCY_MATERIALIZATION", "environment", NOT_RUN, "Dependency materialization was not required by this invocation."))
-    for rel in required_artifacts or []:
+    if require_venv_tool_execution:\n        k = evaluate_venv_tool_execution_gate(replay_root); d = k.get("gate_decision", NOT_RUN)\n        checks.append(_check("F13_VENV_TOOL_EXECUTION", "execution", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-K registered-tool execution inside target venv.", ["venv-tool-execution-evidence.json", "execution-log.json", "result-bundle.json"]))\n    else: checks.append(_check("F13_VENV_TOOL_EXECUTION", "execution", NOT_RUN, "Venv tool execution was not required by this invocation."))\n    for rel in required_artifacts or []:
         path = root / rel; exists = path.exists() and path.is_file()
         checks.append(_check("ARTIFACT:" + rel, "delivery", PASS if exists else FAIL, "Required artifact exists and can be hashed." if exists else "Required artifact is missing.", [rel]))
     if require_paper:

@@ -1,0 +1,20 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"DependencyMaterializationEvidence",
+  "type":"object",
+  "required":["artifact_type","schema_version","materialization_id","adapter_id","status","lock_hash","interpreter","inventory_hash","installed_packages","policy","fingerprint"],
+  "properties":{
+    "artifact_type":{"const":"DependencyMaterializationEvidence"},
+    "schema_version":{"const":"1.0-J"},
+    "materialization_id":{"type":"string","minLength":1},
+    "adapter_id":{"type":"string","minLength":1},
+    "status":{"enum":["INSTALLED","FAILED"]},
+    "lock_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "interpreter":{"type":"string","minLength":1},
+    "inventory_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "installed_packages":{"type":"array","items":{"type":"object","required":["name","version"],"additionalProperties":false,"properties":{"name":{"type":"string"},"version":{"type":"string"}}}},
+    "policy":{"type":"object","required":["allow_network","allow_shell","require_hashes"],"additionalProperties":false,"properties":{"allow_network":{"const":false},"allow_shell":{"const":false},"require_hashes":{"type":"boolean"}}},
+    "fingerprint":{"type":"string","pattern":"^[a-f0-9]{64}$"}
+  },
+  "additionalProperties":false
+}

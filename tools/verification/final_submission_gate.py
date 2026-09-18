@@ -108,7 +108,8 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
         u = evaluate_evidence_unification_gate((replay_root / "execution") if (replay_root / "execution").is_dir() else replay_root); d = u.get("gate_decision", NOT_RUN)
         checks.append(_check("F14_EVIDENCE_UNIFICATION", "evidence", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-L canonical execution evidence gate.", ["unified-execution-evidence.json"]))
     else:
-        checks.append(_check("F14_EVIDENCE_UNIFICATION", "evidence", NOT_RUN, "No K/G/H execution evidence available for V1.0-L unification."))\n    for rel in required_artifacts or []:
+        checks.append(_check("F14_EVIDENCE_UNIFICATION", "evidence", NOT_RUN, "No K/G/H execution evidence available for V1.0-L unification."))
+    for rel in required_artifacts or []:
         path = root / rel; exists = path.exists() and path.is_file()
         checks.append(_check("ARTIFACT:" + rel, "delivery", PASS if exists else FAIL, "Required artifact exists and can be hashed." if exists else "Required artifact is missing.", [rel]))
     if require_paper:

@@ -674,3 +674,58 @@ V 阶段禁止为了“看起来更完整”继续无限增加门禁。后续重
 ### 48.5 测试状态
 
 V 已增加核心集成测试，但本次会话仍未在仓库运行环境中实际执行 pytest，因此当前只能称为“代码级集成测试已建立”，不能声称测试通过。
+
+
+## 49. V1.0-V 第二阶段：完整 Final Submission Fixture
+
+第二阶段不增加新的 Final Gate 编号，而是建立可重复构造的“发布核心运行样例”。
+
+### 49.1 核心 Fixture
+
+新增：
+`tests/integration/test_v10_v2_final_gate_fixture.py`
+
+使用 V1.0-M canonical topology：
+- `run/reference/execution/result-bundle.json`
+- `run/reference/execution/execution.log`
+- `run/reference/execution/unified-execution-evidence.json`
+- `run/reference/verification/verification-report.json`
+
+并构造 ModelSpec、PaperEvidence、ClaimEvidenceIndex、PresentationDataManifest、PresentationRenderManifest、PaperManifest、SubmissionManifest。
+
+### 49.2 Final Gate 覆盖
+
+同一个 Fixture 调用 Final Submission Gate，覆盖：
+`F1, F2, F3, F4, F6, F16, F17, F18, F19, F20, F21, F22, F23`。
+
+F7–F15 属于需要真实 rebuild / clean-room / dependency / host evidence 的环境链，本阶段不伪造这些证据，而是显式得到 `NOT_RUN`。
+
+因此：
+- 核心发布证据全部 PASS；
+- 外部执行证据缺失时总体结果必须是 NOT_RUN；
+- NOT_RUN 不得被转换成 PASS。
+
+### 49.3 篡改回归
+
+第二个测试修改 canonical ResultBundle 的输出值后重新运行 Final Gate。
+
+预期：
+- F22 ModelExecutionBinding → FAIL；
+- F23 PaperConsistencyAudit → FAIL；
+- Final Gate → FAIL。
+
+这验证“结果一旦被篡改，发布证据链必须断裂”。
+
+### 49.4 V1.0-N 缺陷收敛
+
+`submission_evidence_closure.py` 已修正为遵守实际 Schema 契约：
+- 不再要求 PaperManifest / PresentationDataManifest 中出现 UE 字符串；
+- PaperEvidence 每个 claim 必须有 canonical UE ref；
+- SubmissionManifest 必须包含 canonical UE ref；
+- legacy execution evidence ref → FAIL。
+
+### 49.5 当前原则
+
+> 不是所有 Artifact 都必须携带同一个字段；真正的证据闭环必须遵守各 Artifact 的 Schema 契约。
+
+后续集成测试优先发现 schema/runtime mismatch、canonical path mismatch、over-broad heuristic、hash/reference mismatch，以及 mutation 后仍能 PASS 的漏洞，而不是继续增加门禁数量。

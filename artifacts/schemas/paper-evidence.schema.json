@@ -28,6 +28,8 @@
           "figure_refs": {"type": "array", "items": {"type": "string"}},
           "table_refs": {"type": "array", "items": {"type": "string"}},
           "equation_refs": {"type": "array", "items": {"type": "string"}},
+          "equation_observations": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["expression"], "properties": {"expression": {"type": "string"}, "claim_ref": {"type": "string"}, "model_ref": {"type": "string"}}}},
+          "parameter_observations": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["symbol", "value"], "properties": {"symbol": {"type": "string"}, "value": {}, "unit": {"type": "string"}, "claim_value": {}, "source_ref": {"type": "string"}}}},
           "confidence": {"enum": ["high", "medium", "low"]}
         }
       }

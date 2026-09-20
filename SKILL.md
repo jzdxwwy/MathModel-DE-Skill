@@ -523,3 +523,33 @@ R 在 Q 的实体闭环基础上增加数值闭环：
 Q 解决“Claim 引用了哪个真实实体”；R 解决“Claim 声称的这个具体数值是否真的等于该实体中的数值”。
 
 当前 R 单元测试已加入仓库，但尚未实际运行 pytest，因此不能宣称测试通过。
+
+
+## 45. V1.0-S：公式/参数级溯源
+
+S 在 R 的数值级溯源基础上，建立 Claim 与 ModelSpec 的结构化连接：
+
+`Claim → ModelSpec → equation / parameter`
+
+新增：
+- `artifacts/schemas/claim-model-trace.schema.json`
+- `tools/verification/claim_model_trace.py`
+- `tests/verification/test_v10_s_claim_model_trace.py`
+- `00_governance/V1_0_S_CLAIM_MODEL_TRACE.md`
+
+新增最终门禁：
+`F21_CLAIM_MODEL_TRACE`
+
+### S 的确定性规则
+- 公式必须来自结构化 `equation_observations`；
+- 参数必须来自结构化 `parameter_observations`；
+- 公式采用空白归一化后 SHA256 比较；
+- 不进行“看起来等价”的代数推理；
+- 参数按 symbol 唯一定位；
+- 参数数值使用 atol/rtol 比较；
+- 双方均有单位时必须精确一致；
+- Claim.model_id 与 ModelSpec.model_id 必须一致。
+
+S 不从论文自然语言猜公式或参数，不重算模型，不修改 ModelSpec，不选择冲突公式。
+
+当前首版限制：单个 ModelSpec、结构化 observation、尚未做符号代数等价证明；`model-spec.json` 的标准路径后续应由运行时统一。

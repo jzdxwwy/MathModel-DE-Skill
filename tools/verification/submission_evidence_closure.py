@@ -22,10 +22,12 @@ def evaluate_submission_evidence_closure(run_dir:str|Path)->dict:
     if ue is None: return {"artifact_type":"SubmissionEvidenceClosure","schema_version":"1.0-N","gate_decision":NOT_RUN,"checked_refs":[],"violations":[{"reason":"UnifiedExecutionEvidence missing"}]}
     ue_ref=str(ue.relative_to(root)).replace("\\","/")
     violations=[]; checked=[ue_ref]
+    # Only artifacts whose schemas actually expose an execution-evidence
+    # reference are checked here. PaperManifest and PresentationDataManifest
+    # intentionally do not carry UE fields; requiring a raw string in them was
+    # an over-broad V1.0-N heuristic.
     sources=[
       ("paper-evidence.json",_first(root,"paper-evidence.json") or _first(root/"paper","paper-evidence.json")),
-      ("presentation-data-manifest.json",_first(root,"presentation-data-manifest.json") or _first(root/"presentation","presentation-data-manifest.json")),
-      ("paper-manifest.json",_first(root,"paper-manifest.json") or _first(root/"paper","paper-manifest.json")),
       ("submission-manifest.json",_first(root,"submission-manifest.json"))
     ]
     for label,p in sources:
@@ -40,7 +42,18 @@ def evaluate_submission_evidence_closure(run_dir:str|Path)->dict:
         for old in legacy:
             if old in text:
                 violations.append({"artifact":label,"reason":"legacy execution evidence referenced","ref":old})
-        if "unified-execution-evidence" not in text:
-            violations.append({"artifact":label,"reason":"canonical UnifiedExecutionEvidence reference missing"})
+        if label=="paper-evidence.json":
+            claims=doc.get("claims",[]) if isinstance(doc.get("claims",[]),list) else []
+            for claim in claims:
+                refs=claim.get("unified_execution_evidence_refs",[]) if isinstance(claim,dict) else []
+                if not refs:
+                    violations.append({"artifact":label,"claim_id":claim.get("claim_id") if isinstance(claim,dict) else None,
+                                       "reason":"canonical UnifiedExecutionEvidence reference missing"})
+                elif not any(str(ref).endswith("unified-execution-evidence.json") for ref in refs):
+                    violations.append({"artifact":label,"claim_id":claim.get("claim_id") if isinstance(claim,dict) else None,
+                                       "reason":"canonical UnifiedExecutionEvidence reference missing"})
+        else:
+            if "unified-execution-evidence.json" not in text:
+                violations.append({"artifact":label,"reason":"canonical UnifiedExecutionEvidence reference missing"})
     return {"artifact_type":"SubmissionEvidenceClosure","schema_version":"1.0-N",
             "gate_decision":FAIL if violations else PASS,"checked_refs":checked,"violations":violations}

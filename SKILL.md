@@ -553,3 +553,29 @@ S 在 R 的数值级溯源基础上，建立 Claim 与 ModelSpec 的结构化连
 S 不从论文自然语言猜公式或参数，不重算模型，不修改 ModelSpec，不选择冲突公式。
 
 当前首版限制：单个 ModelSpec、结构化 observation、尚未做符号代数等价证明；`model-spec.json` 的标准路径后续应由运行时统一。
+
+
+## 46. V1.0-T：模型—执行绑定
+
+T 将 S 的模型结构溯源继续连接到真实执行产物：
+
+`ModelSpec → ResultBundle → UnifiedExecutionEvidence`
+
+新增：
+- `artifacts/schemas/model-execution-binding.schema.json`
+- `tools/verification/model_execution_binding.py`
+- `tests/verification/test_v10_t_model_execution_binding.py`
+- `00_governance/V1_0_T_MODEL_EXECUTION_BINDING.md`
+
+新增最终门禁：
+`F22_MODEL_EXECUTION_BINDING`
+
+### T 的确定性规则
+- ResultBundle.model_id = ModelSpec.model_id；
+- ResultBundle.run_id = UnifiedExecutionEvidence.run_id；
+- UE.result_bundle_hash = 实际 ResultBundle SHA256；
+- UE.execution_status = SUCCESS；
+- ModelSpec、ResultBundle、UE 必须同时存在；
+- 保存 ModelSpec SHA256、ResultBundle SHA256、equation_refs、parameter_symbols。
+
+T 只证明“模型身份与执行产物绑定”，不宣称已经证明执行代码内部进行了完整公式级重算。公式级代码等价验证留给后续阶段。

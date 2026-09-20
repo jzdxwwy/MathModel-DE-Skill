@@ -46,13 +46,23 @@ def _sha256(path: Path) -> str:
 def evaluate_cross_artifact_consistency(root: str | Path, run_id: str) -> dict[str, Any]:
     root = Path(root)
     run_dir = root / "runs" / str(run_id)
-    paper_evidence = _load(run_dir / "paper-evidence.json") or _load(root / "artifacts" / "paper-evidence.json")
-    paper_manifest = _load(run_dir / "paper-manifest.json") or _load(root / "artifacts" / "paper-manifest.json")
-    presentation = _load(root / "artifacts" / "presentation-data-manifest.json")
-    render = _load(run_dir / "presentation-render-manifest.json")
+    paper_evidence = (_load(run_dir / "paper-evidence.json")
+                      or _load(run_dir / "paper" / "paper-evidence.json")
+                      or _load(root / "artifacts" / "paper-evidence.json"))
+    paper_manifest = (_load(run_dir / "paper-manifest.json")
+                      or _load(run_dir / "paper" / "paper-manifest.json")
+                      or _load(root / "artifacts" / "paper-manifest.json"))
+    # V1.0-M canonical topology first, legacy flat layout second.
+    presentation = (_load(root / "artifacts" / "presentation-data-manifest.json")
+                    or _load(run_dir / "presentation-data-manifest.json")
+                    or _load(run_dir / "reference" / "presentation" / "presentation-data-manifest.json"))
+    render = (_load(run_dir / "presentation-render-manifest.json")
+              or _load(run_dir / "reference" / "presentation" / "presentation-render-manifest.json"))
     submission = _load(run_dir / "submission-manifest.json")
-    result = _load(run_dir / "result-bundle.json")
-    verification = _load(run_dir / "verification-report.json")
+    result = (_load(run_dir / "reference" / "execution" / "result-bundle.json")
+              or _load(run_dir / "result-bundle.json"))
+    verification = (_load(run_dir / "reference" / "verification" / "verification-report.json")
+                    or _load(run_dir / "verification-report.json"))
 
     checks: list[dict[str, Any]] = []
     missing_core = [name for name, obj in (("PaperEvidence", paper_evidence), ("PaperManifest", paper_manifest),

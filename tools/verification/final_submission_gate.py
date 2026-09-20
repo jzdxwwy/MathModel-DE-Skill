@@ -48,7 +48,7 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
     require_environment_closure: bool = True, require_clean_room_execution: bool = True,
     require_execution_replay: bool = True, require_host_materialization: bool = True,
     require_dependency_materialization: bool = True, require_venv_tool_execution: bool = True,
-    require_unified_reproducibility: bool = True,
+    require_unified_reproducibility: bool = True, require_claim_lineage_conflict: bool = True,
     rebuild_dir: str | Path | None = None) -> dict[str, Any]:
     """Evaluate persisted evidence; NOT_RUN never becomes PASS."""
     root = Path(run_dir); run_id = root.name; checks: list[dict[str, Any]] = []

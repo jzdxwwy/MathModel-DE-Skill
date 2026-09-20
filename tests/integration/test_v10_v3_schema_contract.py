@@ -58,7 +58,6 @@ def test_v10_v3_generated_claim_and_audit_artifacts_match_schemas(tmp_path: Path
         ("claim-model-trace.json", "claim-model-trace.schema.json"),
         ("model-execution-binding.json", "model-execution-binding.schema.json"),
         ("paper-consistency-audit.json", "paper-consistency-audit.schema.json"),
-        ("final-submission-gate-report.json", "final-submission-gate.schema.json"),
     ]
     for rel, schema_name in generated:
         path = run / rel

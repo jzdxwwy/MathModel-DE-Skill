@@ -437,3 +437,60 @@ P 不重算模型、不修改 Frozen ResultBundle、不选择冲突来源、不�
 
 ### 42.5 测试状态
 已增加 P 回归测试，但本次会话没有实际运行 pytest，因此不能声称测试通过。
+
+
+## 43. V1.0-Q：Claim → Entity → Verification → Execution Closure
+
+Q 将 V1.0-P 的“引用存在”进一步升级为“引用对象真实存在、可解析、并闭合到本次执行”。
+
+核心链：
+`Claim → Result Entity → Verification Entity → ResultBundle → UnifiedExecutionEvidence`
+
+### 43.1 Result Entity 解析
+`ClaimEvidenceIndex` 中的 result ref 必须能够确定性解析：
+- `output:<name>` → ResultBundle.outputs 中唯一同名输出；
+- `metric:<name>` → ResultBundle.metrics 中存在该指标；
+- `artifact:<path>` → ResultBundle.artifacts 中唯一同路径产物；
+- `result-bundle.json` 或其路径 → 整个 ResultBundle；
+- 裸名称 → 仅在 outputs 中唯一时允许。
+
+无法解析或无法唯一确定 → FAIL_CLOSED。
+
+### 43.2 Verification Entity 解析
+verification ref 必须解析到 VerificationReport：
+- `check:<check_id>` 或裸 check_id → 唯一检查项；
+- 检查项必须为 PASS；
+- 报告级引用必须由 VerificationReport.gate_decision 支持。
+
+### 43.3 Execution Closure
+Claim 的 UnifiedExecutionEvidence 必须满足：
+- execution_status = SUCCESS；
+- UE.run_id = ResultBundle.run_id；
+- UE.result_bundle_hash = 实际 ResultBundle SHA256；
+- Claim 引用必须指向 canonical UnifiedExecutionEvidence。
+
+### 43.4 F19 Final Submission Gate
+新增：
+`F19_CLAIM_ENTITY_CLOSURE`
+
+只有所有 Claim 都形成：
+`Claim → Result → Verification → UnifiedExecutionEvidence`
+闭环时，Q 才返回 PASS。
+
+Q 不：
+- 从 Claim 自然语言猜测结果；
+- 自动做单位换算；
+- 在冲突结果中选择一个；
+- 重算模型；
+- 修改 Frozen ResultBundle。
+
+### 43.5 Q 测试
+新增：
+- `tests/verification/test_v10_q_claim_entity_closure.py`
+
+覆盖：
+1. 正常 Claim 实体闭环；
+2. Result ref 无法解析；
+3. Verification 非 PASS。
+
+当前仓库测试尚未在本实现环境实际运行，因此不能宣称 pytest 已通过。

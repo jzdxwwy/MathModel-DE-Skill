@@ -1,0 +1,25 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"ClaimNumericTrace","type":"object","additionalProperties":false,
+  "required":["artifact_type","schema_version","status","run_id","claims","gate_decision","violations"],
+  "properties":{
+    "artifact_type":{"const":"ClaimNumericTrace"},"schema_version":{"const":"1.0-R"},
+    "status":{"enum":["DRAFT","VALIDATED","FROZEN","SUPERSEDED"]},"run_id":{"type":"string"},
+    "claims":{"type":"array","items":{"type":"object","additionalProperties":false,
+      "required":["claim_id","observations","trace_status"],
+      "properties":{
+        "claim_id":{"type":"string"},
+        "observations":{"type":"array","items":{"type":"object","additionalProperties":false,
+          "required":["observation_id","claim_value","result_value","comparison","tolerance"],
+          "properties":{
+            "observation_id":{"type":"string"},"claim_value":{},"result_value":{},
+            "unit":{"type":"string"},"result_ref":{"type":"string"},"source_path":{"type":"string"},
+            "comparison":{"enum":["MATCH","MISMATCH","NOT_NUMERIC","MISSING"]},
+            "tolerance":{"type":"object","additionalProperties":false,"required":["atol","rtol"],
+              "properties":{"atol":{"type":"number"},"rtol":{"type":"number"}}}
+          }}},
+        "trace_status":{"enum":["CLOSED","OPEN"]}
+      }}},
+    "gate_decision":{"enum":["PASS","FAIL","NOT_RUN"]},"violations":{"type":"array","items":{"type":"string"}}
+  }
+}

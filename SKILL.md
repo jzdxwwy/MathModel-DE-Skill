@@ -347,3 +347,59 @@ F16 的作用不是重新验证数值，而是确认“论文/图表/提交材�
 本次会话没有实际运行 pytest，因此不能声称 N 已运行通过。
 
 N 完成后，下一阶段应重点做 **V1.0-O：Evidence Conflict Resolution + Claim-Level Lineage Closure**，把“引用了统一证据”进一步推进到“每个论文结论、数字、图表、公式都有明确 claim-level lineage，并对冲突 evidence fail-closed”。
+
+
+## 41. V1.0-O：Claim-Level Lineage + Evidence Conflict Closure
+V1.0-O 在 N 的 Single Evidence Reference 之上继续收敛：不只要求“引用 UnifiedExecutionEvidence”，而是要求论文中的每个可验证 Claim 都有显式 lineage，并对同一 Claim 的多来源观测进行确定性冲突检测。
+
+核心链：
+
+Claim → PaperEvidence → Result / Verification / Presentation → UnifiedExecutionEvidence → Input
+
+### 41.1 Claim Lineage
+新增：
+- `artifacts/schemas/claim-lineage.schema.json`
+- `tools/verification/claim_lineage.py`
+
+Claim lineage 使用结构化节点和边，不使用 serialized text 搜索替代字段级关系。Claim 至少应明确：
+1. claim_id；
+2. statement；
+3. Result / Verification / Presentation 引用；
+4. UnifiedExecutionEvidence 引用；
+5. 必要时的多来源 observation。
+
+### 41.2 Evidence Conflict
+新增：
+- `artifacts/schemas/evidence-conflict.schema.json`
+- `tools/verification/evidence_conflict.py`
+
+确定性比较规则：
+- numeric：只有 unit 相同且声明 atol/rtol 才比较；
+- exact：只比较声明的 normalized_value/value；
+- none：不比较；
+- 单位不同、类型不同或无法确定比较关系 → NOT_COMPARABLE；
+- 超出容差的数值差异 → CONFLICT；
+- CONFLICT / NOT_COMPARABLE / 缺 observation → FAIL_CLOSED；
+- 不允许自动选择“更可信”的来源，不做隐式单位换算。
+
+### 41.3 Final Submission Gate
+新增 F17：`CLAIM_LINEAGE_CONFLICT`。
+
+F17 只有在：
+- Claim Lineage Gate = PASS；
+- Evidence Conflict Gate = PASS
+
+时才允许 PASS。任何冲突都阻止最终提交。
+
+### 41.4 与 N 的关系
+N 解决“出版物只引用 UnifiedExecutionEvidence”；O 解决“每一个 Claim 如何沿显式图回溯，以及多个来源是否一致”。
+
+### 41.5 测试与状态
+新增 `tests/verification/test_v10_o_claim_lineage.py`，覆盖：
+- 缺 canonical execution evidence → FAIL；
+- canonical execution evidence → PASS；
+- 数值冲突 → FAIL_CLOSED；
+- 容差内一致 → PASS；
+- 单位不一致 → FAIL_CLOSED。
+
+本次会话没有实际运行 pytest，因此不能声称 O 已测试通过。

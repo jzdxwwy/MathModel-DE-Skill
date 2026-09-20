@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   integration:
     runs-on: ubuntu-latest
@@ -13,11 +16,54 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - name: Install test dependencies
         run: python -m pip install --upgrade pytest jsonschema
+
       - name: Run integration tests
-        run: python -m pytest tests/integration/ -q
+        id: integration
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/ci
+          python -m pytest tests/integration/ -q --junitxml=artifacts/ci/integration-junit.xml | tee artifacts/ci/integration.log
+
       - name: Run verification tests
-        run: python -m pytest tests/verification/ -q
+        id: verification
+        continue-on-error: true
+        run: |
+          python -m pytest tests/verification/ -q --junitxml=artifacts/ci/verification-junit.xml | tee artifacts/ci/verification.log
+
       - name: Run full regression
-        run: python -m pytest -q
+        id: regression
+        continue-on-error: true
+        run: |
+          python -m pytest -q --junitxml=artifacts/ci/full-regression-junit.xml | tee artifacts/ci/full-regression.log
+
+      - name: Collect CI summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          data = {
+              "integration_step": "${{ steps.integration.outcome }}",
+              "verification_step": "${{ steps.verification.outcome }}",
+              "full_regression_step": "${{ steps.regression.outcome }}",
+          }
+          with open("artifacts/ci/summary.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2)
+          PY
+
+      - name: Upload CI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v10-v3-ci-evidence
+          path: artifacts/ci/
+          if-no-files-found: warn
+
+      - name: Fail workflow if any test layer failed
+        if: always()
+        run: |
+          test "${{ steps.integration.outcome }}" = "success"
+          test "${{ steps.verification.outcome }}" = "success"
+          test "${{ steps.regression.outcome }}" = "success"

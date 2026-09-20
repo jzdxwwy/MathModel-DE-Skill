@@ -43,3 +43,25 @@ V1.0-V3 closes when:
 - remaining NOT_RUN states are explicitly attributable to unavailable trusted-host/clean-room execution.
 
 V1.0-V4 may then begin D/E benchmark integration.
+
+## V3.3 Schema/Runtime/Mutation Convergence
+
+V3.3 focuses on three-way contract convergence:
+
+1. Schema contract — canonical source artifacts and generated evidence are validated against their JSON Schemas.
+2. Runtime contract — Final Submission Gate output shape is validated in memory against final-submission-gate.schema.json.
+3. Mutation contract — intentional mutations must fail at the gate that owns the affected evidence.
+
+Current mutation coverage includes:
+- ResultBundle output value → F22
+- UnifiedExecutionEvidence result hash → F22
+- PresentationDataManifest value → F23
+- ModelSpec model identity → F21
+- PaperEvidence numeric observation → F20
+- PaperManifest claim reference → F23
+- removal of canonical UnifiedExecutionEvidence → F22
+- SubmissionManifest artifact SHA256 → F6
+
+CI now runs integration tests, verification tests, and the full pytest regression suite.
+
+Important: adding these tests does not mean they have passed. A release claim requires an observed CI/test result.

@@ -19,6 +19,7 @@ from .claim_lineage import evaluate_claim_lineage_gate
 from .evidence_conflict import evaluate_evidence_conflicts
 from .claim_entity_closure import evaluate_claim_entity_closure
 from .claim_numeric_trace import evaluate_claim_numeric_trace
+from .claim_model_trace import evaluate_claim_model_trace
 
 PASS, FAIL, NOT_RUN = "PASS", "FAIL", "NOT_RUN"
 
@@ -50,7 +51,7 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
     require_environment_closure: bool = True, require_clean_room_execution: bool = True,
     require_execution_replay: bool = True, require_host_materialization: bool = True,
     require_dependency_materialization: bool = True, require_venv_tool_execution: bool = True,
-    require_unified_reproducibility: bool = True, require_claim_lineage_conflict: bool = True, require_claim_evidence_index: bool = True, require_claim_entity_closure: bool = True, require_claim_numeric_trace: bool = True,
+    require_unified_reproducibility: bool = True, require_claim_lineage_conflict: bool = True, require_claim_evidence_index: bool = True, require_claim_entity_closure: bool = True, require_claim_numeric_trace: bool = True, require_claim_model_trace: bool = True,
     rebuild_dir: str | Path | None = None) -> dict[str, Any]:
     """Evaluate persisted evidence; NOT_RUN never becomes PASS."""
     root = Path(run_dir); run_id = root.name; checks: list[dict[str, Any]] = []
@@ -125,6 +126,14 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
         checks.append(_check("F20_CLAIM_NUMERIC_TRACE", "evidence", rd if rd in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-R claim numeric trace against ResultBundle.", ["claim-numeric-trace.json"]))
     else:
         checks.append(_check("F20_CLAIM_NUMERIC_TRACE", "evidence", NOT_RUN, "Claim numeric trace was not required by this invocation."))
+
+    # V1.0-S: Claim formula/parameter bindings must resolve to ModelSpec.
+    if require_claim_model_trace:
+        sm = evaluate_claim_model_trace(root)
+        sd = sm.get("gate_decision", NOT_RUN)
+        checks.append(_check("F21_CLAIM_MODEL_TRACE", "evidence", sd if sd in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-S claim formula and parameter trace against ModelSpec.", ["claim-model-trace.json", "model-spec.json"]))
+    else:
+        checks.append(_check("F21_CLAIM_MODEL_TRACE", "evidence", NOT_RUN, "Claim model trace was not required by this invocation."))
 
     # V1.0-O: claim-level lineage and deterministic evidence conflict closure.
     if require_claim_lineage_conflict:

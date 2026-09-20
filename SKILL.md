@@ -607,3 +607,70 @@ U 对结构化出版物证据进行最终一致性审计：
 U 不 OCR PDF/Word，不从自然语言正文猜数字，不隐式换算单位，不推断显示精度，不进行未经声明的符号等价证明。
 
 U 通过代表“结构化论文证据链闭合”，不代表 PDF/Word 的视觉版面已经验收。
+
+
+## 48. V1.0-V：全链路集成测试与缺陷收敛
+
+V 不再新增一个孤立门禁，而是进入“集成优先、缺陷收敛”阶段。
+
+### 48.1 V 的目标
+
+围绕真实运行拓扑验证：
+`ProblemSpec → DataProfile → ModelSpec → ResultBundle → UnifiedExecutionEvidence → ClaimEvidence → Presentation → Paper`
+
+重点不是增加 F24，而是确认既有 F1–F23 在同一套 canonical artifact topology 下能够互相找到、互相验证。
+
+### 48.2 本阶段已收敛的问题
+
+1. **ResultBundle builder 与 schema 对齐**
+   - `provenance.input_refs` 必须存在；
+   - 统一由 `result_bundle_builder.py` 生成，避免执行入口各自构造不同 ResultBundle。
+
+2. **V1.0-M canonical topology 与旧路径兼容**
+   - Cross-Artifact Consistency 优先读取 `reference/execution/result-bundle.json`；
+   - Verification 优先读取 `reference/verification/verification-report.json`；
+   - Presentation/Paper 仍保留旧路径 fallback。
+
+3. **S 的结构化输入正式进入 PaperEvidence schema**
+   - `equation_observations`
+   - `parameter_observations`
+   
+   因而 S 不再依赖“schema 外字段”。
+
+4. **T 的 schema 与实际输出一致**
+   - 增加 `gate_decision`
+   - 增加 `violations`
+
+5. **U 支持 canonical execution/verification 路径**
+   - 避免结构化一致性审计因路径差异误报 NOT_RUN。
+
+### 48.3 V 核心集成 Smoke Test
+
+新增：
+`tests/integration/test_v10_v_core_chain.py`
+
+覆盖：
+- ResultBundle builder；
+- ResultBundle schema validation；
+- Claim → ModelSpec 公式/参数溯源；
+- ModelSpec → ResultBundle → UE 绑定；
+- Paper/Presentation → ResultBundle 一致性；
+- 对 ResultBundle 注入数值篡改后，T/U 必须 FAIL。
+
+该测试不伪装成完整 clean-room/rebuild 测试；外部执行环境证据仍由 G–M 负责。
+
+### 48.4 V 的原则
+
+> **先让已有链路在同一拓扑中真正跑通，再考虑增加新能力。**
+
+V 阶段禁止为了“看起来更完整”继续无限增加门禁。后续重点转向：
+- 全 Final Gate 集成；
+- 真实 D/E benchmark；
+- clean-room / rebuild；
+- Paper/PDF/Word materialization；
+- 性能与失败恢复；
+- 发布打包。
+
+### 48.5 测试状态
+
+V 已增加核心集成测试，但本次会话仍未在仓库运行环境中实际执行 pytest，因此当前只能称为“代码级集成测试已建立”，不能声称测试通过。

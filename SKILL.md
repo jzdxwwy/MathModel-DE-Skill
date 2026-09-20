@@ -741,3 +741,9 @@ V3.3 不新增 Final Gate，而是验证已有 Gate 是否真正可发布：
 V3.3 当前覆盖 ResultBundle、UnifiedExecutionEvidence、PresentationDataManifest、ModelSpec、PaperEvidence、PaperManifest、SubmissionManifest 等关键节点，并将 F20/F21/F22/F23/F6 的责任边界纳入 mutation matrix。
 
 **状态声明：** 测试代码和 CI 已建立，但在获得真实 pytest/CI 执行结果前，不得宣称 V3 通过。
+
+## 51. V1.0-V3.4：CI 可观测性闭环
+
+V3.4 解决的不是模型能力，而是测试证据可观测性：CI 分层执行 integration、verification、full regression；每层保留 JUnit XML 与日志；always 上传 CI evidence；最后依据三个 step outcome 决定 workflow 成功/失败。
+
+原则：**没有观察到真实 CI/pytest 结果，就不能把测试套件标记为 PASS。** 即使工作流文件存在、测试代码存在、静态检查通过，也只能记为待执行。

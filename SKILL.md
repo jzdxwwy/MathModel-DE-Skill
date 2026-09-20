@@ -403,3 +403,37 @@ N 解决“出版物只引用 UnifiedExecutionEvidence”；O 解决“每一个
 - 单位不一致 → FAIL_CLOSED。
 
 本次会话没有实际运行 pytest，因此不能声称 O 已测试通过。
+
+
+## 42. V1.0-P：Claim Evidence Index + Deterministic Claim Binding
+P 不继续堆叠新的数学模型能力，而是解决 O 暴露出的工程问题：Claim 与 Result、Verification、UnifiedExecutionEvidence 之间的关系不能长期依赖人工填写。
+
+新增：
+- `artifacts/schemas/claim-evidence-index.schema.json`
+- `tools/verification/claim_evidence_index.py`
+- `tests/verification/test_v10_p_claim_evidence_index.py`
+- `00_governance/V1_0_P_CLAIM_EVIDENCE_INDEX.md`
+
+### 42.1 核心链
+Claim → PaperEvidence → Result → Verification → UnifiedExecutionEvidence → Presentation
+
+### 42.2 确定性抽取
+P 从已有 PaperEvidence 的结构化字段抽取：
+- claim_id / statement；
+- result_refs；
+- verification_refs；
+- figure/table/equation refs；
+- unified_execution_evidence_refs。
+
+缺少 Result、Verification 或 UnifiedExecutionEvidence → FAIL_CLOSED。
+
+### 42.3 Final Submission Gate
+新增 F18：`CLAIM_EVIDENCE_INDEX`。
+
+F18 的作用是把 O 的 Claim Lineage 从“需要显式构造”推进到“由已有 Artifact 确定性建立索引”。
+
+### 42.4 边界
+P 不重算模型、不修改 Frozen ResultBundle、不选择冲突来源、不进行隐式语义推断。
+
+### 42.5 测试状态
+已增加 P 回归测试，但本次会话没有实际运行 pytest，因此不能声称测试通过。

@@ -1,0 +1,26 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"ClaimEntityClosure",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["artifact_type","schema_version","status","run_id","claims","gate_decision","violations"],
+  "properties":{
+    "artifact_type":{"const":"ClaimEntityClosure"},
+    "schema_version":{"const":"1.0-Q"},
+    "status":{"enum":["DRAFT","VALIDATED","FROZEN","SUPERSEDED"]},
+    "run_id":{"type":"string"},
+    "claims":{"type":"array","items":{
+      "type":"object","additionalProperties":false,
+      "required":["claim_id","result_bindings","verification_bindings","execution_binding","closure"],
+      "properties":{
+        "claim_id":{"type":"string"},
+        "result_bindings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["ref","resolved","kind"],"properties":{"ref":{"type":"string"},"resolved":{"type":"boolean"},"kind":{"type":"string"},"name":{"type":"string"},"value":{},"unit":{"type":"string"},"source_ref":{"type":"string"}}}},
+        "verification_bindings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["ref","resolved","status"],"properties":{"ref":{"type":"string"},"resolved":{"type":"boolean"},"status":{"type":"string"},"check_id":{"type":"string"},"artifact_ref":{"type":"string"}}}},
+        "execution_binding":{"type":"object","additionalProperties":false,"required":["refs","resolved","run_match","result_hash_match"],"properties":{"refs":{"type":"array","items":{"type":"string"}},"resolved":{"type":"boolean"},"run_match":{"type":"boolean"},"result_hash_match":{"type":"boolean"}}},
+        "closure":{"enum":["CLOSED","OPEN"]}
+      }
+    }},
+    "gate_decision":{"enum":["PASS","FAIL","NOT_RUN"]},
+    "violations":{"type":"array","items":{"type":"string"}}
+  }
+}

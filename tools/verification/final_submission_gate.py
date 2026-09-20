@@ -15,6 +15,8 @@ from .execution_evidence_unifier import unify
 from .evidence_unification_gate import evaluate_evidence_unification_gate
 from .unified_reproducibility_gate import evaluate_unified_reproducibility_gate
 from .submission_evidence_closure import evaluate_submission_evidence_closure
+from .claim_lineage import evaluate_claim_lineage_gate
+from .evidence_conflict import evaluate_evidence_conflicts
 
 PASS, FAIL, NOT_RUN = "PASS", "FAIL", "NOT_RUN"
 
@@ -96,6 +98,20 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
         d = dep.get("gate_decision", NOT_RUN)
         checks.append(_check("F12_DEPENDENCY_MATERIALIZATION", "environment", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-J locked dependency installation and observed inventory gate.", ["dependency-materialization-evidence.json", "environment-inventory.json"]))
     else: checks.append(_check("F12_DEPENDENCY_MATERIALIZATION", "environment", NOT_RUN, "Dependency materialization was not required by this invocation."))
+    # V1.0-O: claim-level lineage and deterministic evidence conflict closure.
+    if require_claim_lineage_conflict:
+        lineage = evaluate_claim_lineage_gate(root)
+        ld = lineage.get("gate_decision", NOT_RUN)
+        conflict = evaluate_evidence_conflicts(root) if ld == PASS else {"gate_decision": NOT_RUN}
+        cd = conflict.get("gate_decision", NOT_RUN)
+        fd = FAIL if ld == FAIL or cd == FAIL else (PASS if ld == PASS and cd == PASS else NOT_RUN)
+        checks.append(_check("F17_CLAIM_LINEAGE_CONFLICT", "evidence", fd,
+                             "V1.0-O claim lineage closure and deterministic evidence conflict gate.",
+                             ["claim-lineage.json", "evidence-conflict-report.json"]))
+    else:
+        checks.append(_check("F17_CLAIM_LINEAGE_CONFLICT", "evidence", NOT_RUN,
+                             "Claim lineage and conflict checking was not required by this invocation."))
+
     # V1.0-N: publication artifacts must reference canonical UnifiedExecutionEvidence.
     n = evaluate_submission_evidence_closure(root)
     nd = n.get("gate_decision", NOT_RUN)

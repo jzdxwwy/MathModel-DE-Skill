@@ -579,3 +579,31 @@ T 将 S 的模型结构溯源继续连接到真实执行产物：
 - 保存 ModelSpec SHA256、ResultBundle SHA256、equation_refs、parameter_symbols。
 
 T 只证明“模型身份与执行产物绑定”，不宣称已经证明执行代码内部进行了完整公式级重算。公式级代码等价验证留给后续阶段。
+
+
+## 47. V1.0-U：论文/图表/公式最终一致性审计
+
+U 对结构化出版物证据进行最终一致性审计：
+
+`PaperManifest ↔ PaperEvidence ↔ PresentationDataManifest ↔ ResultBundle ↔ ModelSpec`
+
+新增：
+- `artifacts/schemas/paper-consistency-audit.schema.json`
+- `tools/verification/paper_consistency_audit.py`
+- `tests/verification/test_v10_u_paper_consistency.py`
+- `00_governance/V1_0_U_PAPER_CONSISTENCY_AUDIT.md`
+
+新增最终门禁：
+`F23_PAPER_CONSISTENCY_AUDIT`
+
+### U 的确定性规则
+- PaperManifest 的 claim/figure/table/equation 引用必须可解析；
+- PresentationDataManifest 的 binding 必须能解析到 ResultBundle；
+- 声明的 presentation value 必须在显式 tolerance 内与 ResultBundle 一致；
+- equation expression_hash 若存在必须一致；
+- ModelSpec equation 引用若存在必须可解析；
+- 不允许孤立的 presentation item。
+
+U 不 OCR PDF/Word，不从自然语言正文猜数字，不隐式换算单位，不推断显示精度，不进行未经声明的符号等价证明。
+
+U 通过代表“结构化论文证据链闭合”，不代表 PDF/Word 的视觉版面已经验收。

@@ -494,3 +494,32 @@ Q 不：
 3. Verification 非 PASS。
 
 当前仓库测试尚未在本实现环境实际运行，因此不能宣称 pytest 已通过。
+
+
+## 44. V1.0-R：Claim 数值级自动溯源
+
+R 在 Q 的实体闭环基础上增加数值闭环：
+
+`Claim observation → ClaimEvidenceIndex → ResultBundle value → tolerance comparison`
+
+新增：
+- `artifacts/schemas/claim-numeric-trace.schema.json`
+- `tools/verification/claim_numeric_trace.py`
+- `tests/verification/test_v10_r_claim_numeric_trace.py`
+- `00_governance/V1_0_R_CLAIM_NUMERIC_TRACE.md`
+
+新增最终门禁：
+`F20_CLAIM_NUMERIC_TRACE`
+
+### R 的重要原则
+1. **不解析自然语言 Claim statement 猜数字**；
+2. 数值必须来自结构化 `PaperEvidence.observations`；
+3. 通过 `result_ref` 或 Claim Evidence Index 定位 ResultBundle 实体；
+4. 默认比较容差 `atol=1e-8, rtol=1e-6`；
+5. 两边都有单位时必须精确一致，不做隐式单位换算；
+6. 缺失、非数值、超容差 → FAIL_CLOSED；
+7. 不修改 ResultBundle，不重算模型，不选择冲突来源。
+
+Q 解决“Claim 引用了哪个真实实体”；R 解决“Claim 声称的这个具体数值是否真的等于该实体中的数值”。
+
+当前 R 单元测试已加入仓库，但尚未实际运行 pytest，因此不能宣称测试通过。

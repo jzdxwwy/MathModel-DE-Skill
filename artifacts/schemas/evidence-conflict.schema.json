@@ -1,0 +1,19 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/jzdxwwy/MathModel-DE-Skill/blob/main/artifacts/schemas/evidence-conflict.schema.json",
+  "title":"Evidence Conflict Report","type":"object","additionalProperties":false,
+  "required":["artifact_type","schema_version","gate_decision","claims"],
+  "properties":{
+    "artifact_type":{"const":"EvidenceConflictReport"},"schema_version":{"const":"1.0-O"},
+    "gate_decision":{"enum":["PASS","FAIL","NOT_RUN"]},
+    "claims":{"type":"array","items":{"type":"object","additionalProperties":false,
+      "required":["claim_id","status","observations","conflicts"],
+      "properties":{
+        "claim_id":{"type":"string"},"status":{"enum":["NO_CONFLICT","CONFLICT","NOT_COMPARABLE","MISSING_EVIDENCE"]},
+        "observations":{"type":"array","items":{"type":"string"}},
+        "conflicts":{"type":"array","items":{"type":"object","additionalProperties":false,
+          "required":["left","right","reason"],"properties":{"left":{"type":"string"},"right":{"type":"string"},"reason":{"type":"string"},"difference":{"type":["number","null"]},"tolerance":{"type":["number","null"]}}}}
+      }}},
+    "violations":{"type":"array","items":{"type":"string"}}
+  }
+}

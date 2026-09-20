@@ -729,3 +729,15 @@ F7–F15 属于需要真实 rebuild / clean-room / dependency / host evidence �
 > 不是所有 Artifact 都必须携带同一个字段；真正的证据闭环必须遵守各 Artifact 的 Schema 契约。
 
 后续集成测试优先发现 schema/runtime mismatch、canonical path mismatch、over-broad heuristic、hash/reference mismatch，以及 mutation 后仍能 PASS 的漏洞，而不是继续增加门禁数量。
+
+## 50. V1.0-V3.3：Schema / Runtime / Mutation 三向收敛
+
+V3.3 不新增 Final Gate，而是验证已有 Gate 是否真正可发布：
+- Schema：Fixture 输入与 Gate 生成的结构化证据必须符合 Schema；
+- Runtime：Final Submission Gate 返回值必须符合 FinalSubmissionGateReport 契约；
+- Mutation：对关键证据链节点做定向篡改，必须由对应 Gate fail-closed；
+- CI：集成测试、verification 测试、全量 pytest 均进入自动回归入口。
+
+V3.3 当前覆盖 ResultBundle、UnifiedExecutionEvidence、PresentationDataManifest、ModelSpec、PaperEvidence、PaperManifest、SubmissionManifest 等关键节点，并将 F20/F21/F22/F23/F6 的责任边界纳入 mutation matrix。
+
+**状态声明：** 测试代码和 CI 已建立，但在获得真实 pytest/CI 执行结果前，不得宣称 V3 通过。

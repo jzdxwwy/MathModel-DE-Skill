@@ -42,7 +42,7 @@ def build_fixture(tmp_path: Path) -> Path:
             {"symbol": "x", "role": "input", "meaning": "input"},
             {"symbol": "y", "role": "target", "meaning": "target"},
         ],
-        "parameters": [{"symbol": "a", "meaning": "slope", "value": 2.0, "unit": "1"}],
+        "parameters": [{"symbol": "a", "meaning": "slope", "value": 2.0, "source": "fit"}],
         "equations": ["y = a*x"],
         "assumptions": ["linear relation"],
         "validation_plan": ["independent recomputation"],

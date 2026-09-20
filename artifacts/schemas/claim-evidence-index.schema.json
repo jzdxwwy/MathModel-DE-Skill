@@ -1,0 +1,23 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"Claim Evidence Index","type":"object","additionalProperties":false,
+  "required":["artifact_type","schema_version","status","claims"],
+  "properties":{
+    "artifact_type":{"const":"ClaimEvidenceIndex"},"schema_version":{"const":"1.0-P"},
+    "status":{"enum":["DRAFT","VALIDATED","FROZEN"]},"run_id":{"type":"string"},
+    "claims":{"type":"array","items":{"type":"object","additionalProperties":false,
+      "required":["claim_id","statement","refs"],
+      "properties":{
+        "claim_id":{"type":"string"},"statement":{"type":"string"},
+        "refs":{"type":"object","additionalProperties":false,
+          "properties":{
+            "paper_evidence":{"type":"array","items":{"type":"string"}},
+            "result":{"type":"array","items":{"type":"string"}},
+            "verification":{"type":"array","items":{"type":"string"}},
+            "presentation":{"type":"array","items":{"type":"string"}},
+            "unified_execution_evidence":{"type":"array","items":{"type":"string"}}
+          }
+        }
+      }}}
+  }
+}

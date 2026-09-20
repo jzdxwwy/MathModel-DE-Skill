@@ -65,3 +65,13 @@ Current mutation coverage includes:
 CI now runs integration tests, verification tests, and the full pytest regression suite.
 
 Important: adding these tests does not mean they have passed. A release claim requires an observed CI/test result.
+
+## V3.4 CI Observability Closure
+
+V3.4 does not add a modeling or evidence gate. It makes CI execution evidence durable and observable:
+- each integration/verification/full-regression layer writes a JUnit XML result and log;
+- a summary records each step outcome;
+- CI evidence is uploaded even when tests fail;
+- the workflow still exits non-zero when any test layer fails.
+
+Therefore a failed run remains diagnosable instead of losing its test evidence. A missing workflow run remains an observability gap and cannot be interpreted as PASS.

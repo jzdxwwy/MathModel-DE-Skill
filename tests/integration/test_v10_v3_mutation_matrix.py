@@ -78,6 +78,39 @@ def test_v10_v3_mutate_model_identity_fails(tmp_path: Path):
     assert _decision(report, "F21_CLAIM_MODEL_TRACE") == "FAIL"
 
 
+def test_v10_v3_mutate_paper_observation_fails(tmp_path: Path):
+    run = build_fixture(tmp_path)
+    _gate(run)
+    path = run / "paper-evidence.json"
+    obj = json.loads(path.read_text(encoding="utf-8"))
+    obj["claims"][0]["observations"][0]["value"] = 9.9
+    write_json(path, obj)
+    report = _gate(run)
+    assert report["gate_decision"] == "FAIL"
+    assert _decision(report, "F20_CLAIM_NUMERIC_TRACE") == "FAIL"
+
+
+def test_v10_v3_mutate_paper_reference_fails(tmp_path: Path):
+    run = build_fixture(tmp_path)
+    _gate(run)
+    path = run / "paper-manifest.json"
+    obj = json.loads(path.read_text(encoding="utf-8"))
+    obj["sections"][0]["claim_refs"] = ["C-MISSING"]
+    write_json(path, obj)
+    report = _gate(run)
+    assert report["gate_decision"] == "FAIL"
+    assert _decision(report, "F23_PAPER_CONSISTENCY_AUDIT") == "FAIL"
+
+
+def test_v10_v3_remove_canonical_execution_evidence_fails(tmp_path: Path):
+    run = build_fixture(tmp_path)
+    _gate(run)
+    (run / "reference" / "execution" / "unified-execution-evidence.json").unlink()
+    report = _gate(run)
+    assert report["gate_decision"] == "FAIL"
+    assert _decision(report, "F22_MODEL_EXECUTION_BINDING") == "FAIL"
+
+
 def test_v10_v3_mutate_submission_hash_fails(tmp_path: Path):
     run = build_fixture(tmp_path)
     _gate(run)

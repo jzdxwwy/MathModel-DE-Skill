@@ -48,7 +48,7 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
     require_environment_closure: bool = True, require_clean_room_execution: bool = True,
     require_execution_replay: bool = True, require_host_materialization: bool = True,
     require_dependency_materialization: bool = True, require_venv_tool_execution: bool = True,
-    require_unified_reproducibility: bool = True, require_claim_lineage_conflict: bool = True,
+    require_unified_reproducibility: bool = True, require_claim_lineage_conflict: bool = True, require_claim_evidence_index: bool = True,
     rebuild_dir: str | Path | None = None) -> dict[str, Any]:
     """Evaluate persisted evidence; NOT_RUN never becomes PASS."""
     root = Path(run_dir); run_id = root.name; checks: list[dict[str, Any]] = []
@@ -98,6 +98,16 @@ def evaluate_final_submission_gate(run_dir: str | Path, *, required_artifacts: l
         d = dep.get("gate_decision", NOT_RUN)
         checks.append(_check("F12_DEPENDENCY_MATERIALIZATION", "environment", d if d in {PASS, FAIL, NOT_RUN} else NOT_RUN, "V1.0-J locked dependency installation and observed inventory gate.", ["dependency-materialization-evidence.json", "environment-inventory.json"]))
     else: checks.append(_check("F12_DEPENDENCY_MATERIALIZATION", "environment", NOT_RUN, "Dependency materialization was not required by this invocation."))
+    # V1.0-P: deterministic Claim Evidence Index.
+    if require_claim_evidence_index:
+        from .claim_evidence_index import evaluate_claim_evidence_index
+        pidx = evaluate_claim_evidence_index(root); pd = pidx.get("gate_decision", NOT_RUN)
+        checks.append(_check("F18_CLAIM_EVIDENCE_INDEX", "evidence", pd if pd in {PASS, FAIL, NOT_RUN} else NOT_RUN,
+                             "V1.0-P deterministic Claim Evidence Index closure.", ["claim-evidence-index.json"]))
+    else:
+        checks.append(_check("F18_CLAIM_EVIDENCE_INDEX", "evidence", NOT_RUN,
+                             "Claim Evidence Index was not required by this invocation."))
+
     # V1.0-O: claim-level lineage and deterministic evidence conflict closure.
     if require_claim_lineage_conflict:
         lineage = evaluate_claim_lineage_gate(root)

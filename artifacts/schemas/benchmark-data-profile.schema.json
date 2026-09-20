@@ -1,0 +1,17 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"Benchmark Data Profile",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["artifact_type","schema_version","benchmark_id","status","ingestion_manifest_ref","data_profile_ref","attachment_count","warnings"],
+  "properties":{
+    "artifact_type":{"const":"BenchmarkDataProfile"},
+    "schema_version":{"const":"1.0"},
+    "benchmark_id":{"type":"string","minLength":1},
+    "status":{"enum":["READY","READY_WITH_WARNINGS","BLOCKED"]},
+    "ingestion_manifest_ref":{"type":"string","minLength":1},
+    "data_profile_ref":{"type":"string","minLength":1},
+    "attachment_count":{"type":"integer","minimum":0},
+    "warnings":{"type":"array","items":{"type":"string"}}
+  }
+}

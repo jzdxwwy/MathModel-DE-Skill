@@ -1,0 +1,9 @@
+{
+ "$schema":"https://json-schema.org/draft/2020-12/schema","title":"PaperConsistencyAudit","type":"object","additionalProperties":false,
+ "required":["artifact_type","schema_version","status","run_id","checks","gate_decision","violations"],
+ "properties":{
+  "artifact_type":{"const":"PaperConsistencyAudit"},"schema_version":{"const":"1.0-U"},"status":{"enum":["DRAFT","VALIDATED","FROZEN","SUPERSEDED"]},"run_id":{"type":"string"},
+  "checks":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["check_id","kind","status","message"],"properties":{"check_id":{"type":"string"},"kind":{"enum":["claim","figure","table","equation","section","render"]},"status":{"enum":["PASS","FAIL","NOT_RUN"]},"message":{"type":"string"},"evidence_id":{"type":"string"},"claim_id":{"type":"string"},"source_ref":{"type":"string"},"result_ref":{"type":"string"},"expected":{},"actual":{},"tolerance":{"type":"number"}}}},
+  "gate_decision":{"enum":["PASS","FAIL","NOT_RUN"]},"violations":{"type":"array","items":{"type":"string"}}
+ }
+}

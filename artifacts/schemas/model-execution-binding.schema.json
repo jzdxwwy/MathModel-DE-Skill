@@ -1,0 +1,12 @@
+{
+ "$schema":"https://json-schema.org/draft/2020-12/schema","title":"ModelExecutionBinding","type":"object","additionalProperties":false,
+ "required":["artifact_type","schema_version","status","run_id","model_id","model_spec_ref","model_spec_hash","result_bundle_ref","result_bundle_hash","unified_execution_evidence_ref","binding_status"],
+ "properties":{
+  "artifact_type":{"const":"ModelExecutionBinding"},"schema_version":{"const":"1.0-T"},"status":{"enum":["DRAFT","VALIDATED","FROZEN","SUPERSEDED"]},
+  "run_id":{"type":"string"},"model_id":{"type":"string"},"model_spec_ref":{"type":"string"},"model_spec_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+  "result_bundle_ref":{"type":"string"},"result_bundle_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+  "unified_execution_evidence_ref":{"type":"string"},
+  "equation_refs":{"type":"array","items":{"type":"string"}},"parameter_symbols":{"type":"array","items":{"type":"string"}},
+  "binding_status":{"enum":["BOUND","OPEN","FAIL"]}
+ }
+}

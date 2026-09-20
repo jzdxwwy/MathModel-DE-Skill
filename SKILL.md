@@ -747,3 +747,19 @@ V3.3 当前覆盖 ResultBundle、UnifiedExecutionEvidence、PresentationDataMani
 V3.4 解决的不是模型能力，而是测试证据可观测性：CI 分层执行 integration、verification、full regression；每层保留 JUnit XML 与日志；always 上传 CI evidence；最后依据三个 step outcome 决定 workflow 成功/失败。
 
 原则：**没有观察到真实 CI/pytest 结果，就不能把测试套件标记为 PASS。** 即使工作流文件存在、测试代码存在、静态检查通过，也只能记为待执行。
+
+## 52. V1.0-V4.1：CUMCM D/E Benchmark Harness
+
+V4.1 正式从“验证系统”转入“能力 Benchmark”，但仍不直接解历史题。
+
+以 2024E 为首个 E 类 Benchmark，先建立输入就绪性契约：
+`历史附件 → BenchmarkInputManifest → SHA256 → BenchmarkRun → B01_INPUT_READINESS`
+
+规则：
+- 必须使用真实历史附件；
+- 缺失附件不得用猜测数据替代；
+- 通用 Skill 不得写死 2024E 字段名；
+- Benchmark READY 只表示输入齐全，不表示题目已经求解；
+- 缺失输入时明确 BLOCKED / NOT_RUN。
+
+V4.1 新增 `tools/benchmark/benchmark_runner.py`、Benchmark schemas、benchmark smoke tests 和治理文档。V4.2 再将真实附件接入 Input Boundary / DataProfile。

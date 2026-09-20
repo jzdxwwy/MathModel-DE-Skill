@@ -7,6 +7,8 @@
   "result_bundle_ref":{"type":"string"},"result_bundle_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"},
   "unified_execution_evidence_ref":{"type":"string"},
   "equation_refs":{"type":"array","items":{"type":"string"}},"parameter_symbols":{"type":"array","items":{"type":"string"}},
-  "binding_status":{"enum":["BOUND","OPEN","FAIL"]}
+  "binding_status":{"enum":["BOUND","OPEN","FAIL"]},
+  "gate_decision":{"enum":["PASS","FAIL","NOT_RUN"]},
+  "violations":{"type":"array","items":{"type":"string"}}
  }
 }

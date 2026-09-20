@@ -33,6 +33,40 @@ def test_v10_v3_fixture_source_artifacts_match_schemas(tmp_path: Path):
         jsonschema.Draft202012Validator(_schema(repo_root, schema_name)).validate(instance)
 
 
+def test_v10_v3_generated_claim_and_audit_artifacts_match_schemas(tmp_path: Path):
+    repo_root = Path(__file__).resolve().parents[2]
+    run = build_fixture(tmp_path)
+
+    from tools.verification.final_submission_gate import evaluate_final_submission_gate
+
+    evaluate_final_submission_gate(
+        run,
+        require_reproducibility=False,
+        require_environment_closure=False,
+        require_clean_room_execution=False,
+        require_execution_replay=False,
+        require_host_materialization=False,
+        require_dependency_materialization=False,
+        require_venv_tool_execution=False,
+        require_unified_reproducibility=False,
+    )
+
+    generated = [
+        ("claim-evidence-index.json", "claim-evidence-index.schema.json"),
+        ("claim-entity-closure.json", "claim-entity-closure.schema.json"),
+        ("claim-numeric-trace.json", "claim-numeric-trace.schema.json"),
+        ("claim-model-trace.json", "claim-model-trace.schema.json"),
+        ("model-execution-binding.json", "model-execution-binding.schema.json"),
+        ("paper-consistency-audit.json", "paper-consistency-audit.schema.json"),
+        ("final-submission-gate-report.json", "final-submission-gate.schema.json"),
+    ]
+    for rel, schema_name in generated:
+        path = run / rel
+        assert path.is_file(), rel
+        instance = json.loads(path.read_text(encoding="utf-8"))
+        jsonschema.Draft202012Validator(_schema(repo_root, schema_name)).validate(instance)
+
+
 def test_v10_v3_final_gate_report_matches_schema(tmp_path: Path):
     repo_root = Path(__file__).resolve().parents[2]
     run = build_fixture(tmp_path)

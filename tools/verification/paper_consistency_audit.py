@@ -16,7 +16,9 @@ def _load(p):
 
 def _find(root,names):
     for n in names:
-        for p in (root/n,root/"artifacts"/n,root/"paper"/n,root/"reference"/n,root/"reference"/"paper"/n):
+        for p in (root/n,root/"artifacts"/n,root/"paper"/n,root/"reference"/n,
+                  root/"reference"/"paper"/n,root/"reference"/"execution"/n,
+                  root/"reference"/"verification"/n):
             if p.is_file(): return p
     return None
 

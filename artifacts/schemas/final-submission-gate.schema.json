@@ -24,7 +24,8 @@
     },
     "blocking_failures": {"type": "array", "items": {"type": "string"}},
     "not_run_checks": {"type": "array", "items": {"type": "string"}},
-    "gate_decision": {"enum": ["PASS", "FAIL", "NOT_RUN"]}
+    "gate_decision": {"enum": ["PASS", "FAIL", "NOT_RUN"]},
+    "artifact_hashes": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
   },
   "additionalProperties": false
 }

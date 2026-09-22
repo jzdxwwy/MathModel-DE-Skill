@@ -18,6 +18,8 @@
             "unified_execution_evidence":{"type":"array","items":{"type":"string"}}
           }
         }
-      }}}
+      }}},
+    "gate_decision":{"enum":["PASS","FAIL","NOT_RUN"]},
+    "violations":{"type":"array","items":{"type":"string"}}
   }
 }

@@ -5,14 +5,12 @@ from pathlib import Path
 
 PASS, FAIL, NOT_RUN = "PASS", "FAIL", "NOT_RUN"
 
-
 def _read(p: Path):
     try:
         v = json.loads(p.read_text(encoding="utf-8"))
         return v if isinstance(v, dict) else None
     except Exception:
         return None
-
 
 def _first(root: Path, *names):
     for n in names:
@@ -21,6 +19,8 @@ def _first(root: Path, *names):
             return p
     return None
 
+def _rel(p: Path, root: Path) -> str:
+    return str(p.relative_to(root)).replace("\\", "/")
 
 def evaluate_submission_evidence_closure(run_dir: str | Path) -> dict:
     root = Path(run_dir)
@@ -29,7 +29,7 @@ def evaluate_submission_evidence_closure(run_dir: str | Path) -> dict:
         return {"artifact_type": "SubmissionEvidenceClosure", "schema_version": "1.0-N",
                 "gate_decision": NOT_RUN, "checked_refs": [],
                 "violations": [{"reason": "UnifiedExecutionEvidence missing"}]}
-    ue_ref = str(ue.relative_to(root)).replace("\", "/")
+    ue_ref = _rel(ue, root)
     violations = []
     checked = [ue_ref]
 
@@ -44,10 +44,9 @@ def evaluate_submission_evidence_closure(run_dir: str | Path) -> dict:
         if doc is None:
             violations.append({"artifact": label, "reason": "invalid JSON"})
             continue
-        checked.append(str(p.relative_to(root)).replace("\", "/"))
+        checked.append(_rel(p, root))
         text = json.dumps(doc, ensure_ascii=False)
-        legacy = ["execution-evidence.json", "venv-tool-execution-evidence.json", "execution-replay-result.json"]
-        for old in legacy:
+        for old in ["execution-evidence.json", "venv-tool-execution-evidence.json", "execution-replay-result.json"]:
             if old in text:
                 violations.append({"artifact": label, "reason": "legacy execution evidence referenced", "ref": old})
 
@@ -62,21 +61,20 @@ def evaluate_submission_evidence_closure(run_dir: str | Path) -> dict:
                     violations.append({"artifact": label, "claim_id": claim.get("claim_id") if isinstance(claim, dict) else None,
                                        "reason": "canonical UnifiedExecutionEvidence reference missing"})
         else:
-            # SubmissionManifest schema does not require a dedicated UE field.
-            # Resolve it structurally through its immutable artifact index.
             artifacts = doc.get("artifacts", []) if isinstance(doc.get("artifacts", []), list) else []
             candidates = []
             for art in artifacts:
                 if not isinstance(art, dict):
                     continue
                 kind = str(art.get("kind", "")).strip().lower()
-                path = str(art.get("path", "")).replace("\", "/")
+                path = str(art.get("path", "")).replace("\\", "/")
                 if kind in {"execution-evidence", "unified-execution-evidence"} or path.endswith("unified-execution-evidence.json"):
                     candidates.append((kind, path))
             if not candidates:
                 violations.append({"artifact": label, "reason": "canonical UnifiedExecutionEvidence not indexed"})
             elif not any(path == ue_ref for _, path in candidates):
-                violations.append({"artifact": label, "reason": "indexed UnifiedExecutionEvidence path is not canonical", "expected": ue_ref,
-                                   "actual": [path for _, path in candidates]})
+                violations.append({"artifact": label, "reason": "indexed UnifiedExecutionEvidence path is not canonical",
+                                   "expected": ue_ref, "actual": [path for _, path in candidates]})
+
     return {"artifact_type": "SubmissionEvidenceClosure", "schema_version": "1.0-N",
             "gate_decision": FAIL if violations else PASS, "checked_refs": checked, "violations": violations}

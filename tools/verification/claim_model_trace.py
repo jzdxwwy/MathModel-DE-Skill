@@ -63,7 +63,7 @@ def evaluate_claim_model_trace(root: str | Path, *, atol=1e-8, rtol=1e-6):
     pe_path = _find(root, ["paper-evidence.json"])
     idx_path = _find(root, ["claim-evidence-index.json"])
     spec_path = _find(root, ["model-spec.json", "model-specs.json"])
-    result_path = _find(root, ["result-bundle.json"])
+    result_path = _find(root, ["result-bundle.json"])\n    if result_path is None and (root / "reference" / "execution" / "result-bundle.json").is_file():\n        result_path = root / "reference" / "execution" / "result-bundle.json"
     if not all((pe_path, idx_path, spec_path)):
         missing = [n for n, p in (("paper-evidence.json", pe_path), ("claim-evidence-index.json", idx_path),
                                   ("model-spec.json", spec_path)) if p is None]

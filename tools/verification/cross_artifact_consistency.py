@@ -52,7 +52,6 @@ def evaluate_cross_artifact_consistency(root: str | Path, run_id: str) -> dict[s
     paper_manifest = (_load(run_dir / "paper-manifest.json")
                       or _load(run_dir / "paper" / "paper-manifest.json")
                       or _load(root / "artifacts" / "paper-manifest.json"))
-    # V1.0-M canonical topology first, legacy flat layout second.
     presentation = (_load(root / "artifacts" / "presentation-data-manifest.json")
                     or _load(run_dir / "presentation-data-manifest.json")
                     or _load(run_dir / "reference" / "presentation" / "presentation-data-manifest.json"))
@@ -79,23 +78,18 @@ def evaluate_cross_artifact_consistency(root: str | Path, run_id: str) -> dict[s
     presentation_items = presentation.get("items") or []
     evidence_ids = _ids(presentation_items, "evidence_id")
 
-    # B1: PaperManifest -> PaperEvidence closure.
     referenced_claims = {str(r) for s in sections for r in (s.get("claim_refs") or [])}
     checks.append(_check_ref_set("B01", list(referenced_claims), claim_ids, "PaperManifest.claim_refs -> PaperEvidence.claim_id"))
-
-    # B2: every material claim is represented in the PaperManifest.
     checks.append({"check_id": "B02", "status": PASS if claim_ids <= referenced_claims else FAIL,
                    "evidence": "Every PaperEvidence claim is referenced by PaperManifest" if claim_ids <= referenced_claims
                    else f"Unreferenced claims={sorted(claim_ids - referenced_claims)}"})
 
-    # B3: PaperEvidence presentation references -> PresentationDataManifest.
     for kind, field in (("figure", "figure_refs"), ("table", "table_refs"), ("equation", "equation_refs")):
         refs = {str(r) for c in claims for r in (c.get(field) or [])}
         available = {str(i["evidence_id"]) for i in presentation_items if i.get("kind") == kind}
         checks.append(_check_ref_set(f"B03-{kind[0].upper()}", list(refs), available,
                                      f"PaperEvidence.{field} -> PresentationDataManifest({kind})"))
 
-    # B4: PresentationDataManifest must bind to a persisted ResultBundle.
     result_ok = result is not None and result.get("status") in {"VALIDATED", "FROZEN"}
     checks.append({"check_id": "B04", "status": PASS if result_ok else FAIL,
                    "evidence": "Presentation bindings have a VALIDATED/FROZEN ResultBundle" if result_ok
@@ -107,7 +101,6 @@ def evaluate_cross_artifact_consistency(root: str | Path, run_id: str) -> dict[s
                            "status": PASS if all(b.get("result_ref") for b in binds if isinstance(b, dict)) else FAIL,
                            "evidence": f"Presentation item {item.get('evidence_id')} declares result_ref bindings"})
 
-    # B5: RenderManifest closes PresentationDataManifest.
     render_refs = set()
     for item in render.get("items", render.get("renders", [])) or []:
         if isinstance(item, dict):
@@ -117,30 +110,29 @@ def evaluate_cross_artifact_consistency(root: str | Path, run_id: str) -> dict[s
         render_refs = {str(x) for x in (render.get("evidence_ids") or [])}
     checks.append(_check_ref_set("B05", list(evidence_ids), render_refs, "PresentationDataManifest.evidence_id -> RenderManifest"))
 
-    # B6: PaperManifest presentation refs must resolve to presentation evidence.
     for kind, field in (("figure", "figure_refs"), ("table", "table_refs"), ("equation", "equation_refs")):
         refs = {str(r) for s in sections for r in (s.get(field) or [])}
         checks.append(_check_ref_set(f"B06-{kind[0].upper()}", list(refs), evidence_ids,
                                      f"PaperManifest.{field} -> PresentationDataManifest.evidence_id"))
 
-    # B7: SubmissionManifest references and hashes must match actual files.
+    # SubmissionManifest paths are relative to the run directory, not the
+    # workspace containing runs/. This is essential for the canonical V1.0-M
+    # topology and prevents a false B07 failure.
     artifact_checks = []
     for art in submission.get("artifacts") or []:
         if not isinstance(art, dict) or not art.get("path"):
             artifact_checks.append(False)
             continue
-        path = root / str(art["path"])
+        path = run_dir / str(art["path"])
         ok = path.is_file() and _sha256(path) == str(art.get("sha256", ""))
         artifact_checks.append(ok)
     checks.append({"check_id": "B07", "status": PASS if artifact_checks and all(artifact_checks) else FAIL,
                    "evidence": "SubmissionManifest artifact paths and SHA256 values match" if artifact_checks and all(artifact_checks)
                    else "SubmissionManifest contains missing files or SHA256 mismatches"})
 
-    # B8: run identity consistency.
     ids_ok = all(obj.get("run_id") in {None, str(run_id)} for obj in (result or {}, verification or {}, submission or {}))
     checks.append({"check_id": "B08", "status": PASS if ids_ok else FAIL,
                    "evidence": "run_id is consistent across run artifacts" if ids_ok else "run_id mismatch across run artifacts"})
-
     return _report(run_id, checks)
 
 

@@ -7,7 +7,7 @@ from typing import Any,Callable
 def _sha256(p:Path)->str:
     h=hashlib.sha256()
     with p.open("rb") as f:
-        for b in iter(lambda:f.read(1024*1024),b): h.update(b)
+        for b in iter(lambda:f.read(1024*1024),b""): h.update(b)
     return h.hexdigest()
 
 def _canon(v:Any)->str:
@@ -41,25 +41,12 @@ class VenvToolExecutor:
         proc=subprocess.run(
             [str(interpreter),"-m",module,"--tool",contract["tool"],"--payload",str(payload),"--output",str(execution)],
             shell=False,cwd=str(root),capture_output=True,text=True,check=False)
-        log={
-          "run_id":contract["run_id"],"isolation_id":isolation_id,"adapter_id":contract["adapter_id"],
-          "tool":contract["tool"],"interpreter":str(interpreter),"input_hashes":contract.get("input_hashes",[]),
-          "lock_hash":contract["lock_hash"],"environment_fingerprint":contract["environment_fingerprint"],
-          "returncode":proc.returncode,"stdout_tail":proc.stdout[-4000:],"stderr_tail":proc.stderr[-4000:]
-        }
+        log={"run_id":contract["run_id"],"isolation_id":isolation_id,"adapter_id":contract["adapter_id"],"tool":contract["tool"],"interpreter":str(interpreter),"input_hashes":contract.get("input_hashes",[]),"lock_hash":contract["lock_hash"],"environment_fingerprint":contract["environment_fingerprint"],"returncode":proc.returncode,"stdout_tail":proc.stdout[-4000:],"stderr_tail":proc.stderr[-4000:]}
         lp=execution/"execution.log"
         lp.write_text(json.dumps(log,ensure_ascii=False,indent=2,sort_keys=True),encoding="utf-8")
         rp=execution/"result-bundle.json"
         status="EXECUTED" if proc.returncode==0 and rp.is_file() else "FAILED"
-        evidence={
-          "artifact_type":"VenvToolExecutionEvidence","schema_version":"1.0-K","run_id":contract["run_id"],
-          "status":status,"adapter_id":contract["adapter_id"],"tool":contract["tool"],"interpreter":str(interpreter),
-          "isolation_id":isolation_id,"input_hashes":contract.get("input_hashes",[]),"lock_hash":contract["lock_hash"],
-          "environment_fingerprint":contract["environment_fingerprint"],
-          "result_bundle_sha256":_sha256(rp) if rp.is_file() else "0"*64,
-          "execution_log_sha256":_sha256(lp)
-        }
+        evidence={"artifact_type":"VenvToolExecutionEvidence","schema_version":"1.0-K","run_id":contract["run_id"],"status":status,"adapter_id":contract["adapter_id"],"tool":contract["tool"],"interpreter":str(interpreter),"isolation_id":isolation_id,"input_hashes":contract.get("input_hashes",[]),"lock_hash":contract["lock_hash"],"environment_fingerprint":contract["environment_fingerprint"],"result_bundle_sha256":_sha256(rp) if rp.is_file() else "0"*64,"execution_log_sha256":_sha256(lp)}
         evidence["fingerprint"]=hashlib.sha256(_canon(evidence).encode()).hexdigest()
-        (execution/"venv-tool-execution-evidence.json").write_text(
-            json.dumps(evidence,ensure_ascii=False,indent=2,sort_keys=True),encoding="utf-8")
+        (execution/"venv-tool-execution-evidence.json").write_text(json.dumps(evidence,ensure_ascii=False,indent=2,sort_keys=True),encoding="utf-8")
         return evidence

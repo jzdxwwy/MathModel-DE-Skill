@@ -14,7 +14,7 @@ def _read(p):
 def _hash(p):
     h=hashlib.sha256()
     with p.open("rb") as f:
-        for b in iter(lambda:f.read(1024*1024),b): h.update(b)
+        for b in iter(lambda:f.read(1024*1024),b""): h.update(b)
     return h.hexdigest()
 
 def _paths(root:Path):
@@ -45,17 +45,7 @@ def unify(run_dir:str|Path)->dict:
     if not log.is_file() and legacy_log.is_file(): log=legacy_log
     if not rb.is_file() or not log.is_file(): raise FileNotFoundError("ResultBundle or execution log missing")
     status="SUCCESS" if src.get("status") in {"EXECUTED","SUCCESS"} else src.get("status","FAILED")
-    e={
-      "artifact_type":"UnifiedExecutionEvidence","schema_version":"1.0-M",
-      "execution_id":str(src.get("execution_id") or src.get("run_id")),
-      "run_id":str(src.get("run_id")),"execution_status":status,
-      "adapter_id":str(src.get("adapter_id")),"isolation_id":str(src.get("isolation_id") or "unknown"),
-      "tool_ref":str(src.get("tool") or src.get("tool_ref")),"interpreter":str(src.get("interpreter") or "unknown"),
-      "input_hashes":src.get("input_hashes",[]),"lock_hash":str(src.get("lock_hash")),
-      "environment_fingerprint":str(src.get("environment_fingerprint")),
-      "execution_log_hash":_hash(log),"result_bundle_hash":_hash(rb),
-      "source_evidence":source,"observed_at":datetime.now(timezone.utc).isoformat()
-    }
+    e={"artifact_type":"UnifiedExecutionEvidence","schema_version":"1.0-M","execution_id":str(src.get("execution_id") or src.get("run_id")),"run_id":str(src.get("run_id")),"execution_status":status,"adapter_id":str(src.get("adapter_id")),"isolation_id":str(src.get("isolation_id") or "unknown"),"tool_ref":str(src.get("tool") or src.get("tool_ref")),"interpreter":str(src.get("interpreter") or "unknown"),"input_hashes":src.get("input_hashes",[]),"lock_hash":str(src.get("lock_hash")),"environment_fingerprint":str(src.get("environment_fingerprint")),"execution_log_hash":_hash(log),"result_bundle_hash":_hash(rb),"source_evidence":source,"observed_at":datetime.now(timezone.utc).isoformat()}
     e["canonical_fingerprint"]=hashlib.sha256(json.dumps(e,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
     (execution/"unified-execution-evidence.json").write_text(json.dumps(e,ensure_ascii=False,indent=2,sort_keys=True),encoding="utf-8")
     return e

@@ -5,7 +5,7 @@ string. Network access is disabled by default; a local wheelhouse is required
 when packages must be installed under the default policy.
 """
 from __future__ import annotations
-import hashlib, json, os, re, subprocess, sys
+import hashlib, json, os, re, subprocess
 from pathlib import Path
 from typing import Any
 
@@ -40,12 +40,12 @@ def install_locked_dependencies(contract: dict[str,Any], *, output_dir: str|Path
     packages=contract.get("packages",[])
     wheelhouse=Path(str(contract.get("wheelhouse",""))).resolve() if contract.get("wheelhouse") else None
     if packages and not wheelhouse:
-        raise ValueError("a local wheelhouse is required when network is disabled")
-    if wheelhouse and not wheelhouse.is_dir(): raise FileNotFoundError("wheelhouse does not exist")
+        return {"status":"FAILED","reason":"a local wheelhouse is required when network is disabled"}
+    if wheelhouse and not wheelhouse.is_dir():
+        return {"status":"FAILED","reason":"wheelhouse does not exist"}
     env=dict(os.environ)
     env["PIP_DISABLE_PIP_VERSION_CHECK"]="1"
     env["PIP_NO_INPUT"]="1"
-    # First bootstrap pip from the interpreter's bundled ensurepip; no network is used.
     boot=subprocess.run([str(interpreter),"-m","ensurepip","--upgrade"],shell=False,check=False,capture_output=True,text=True,env=env)
     if boot.returncode!=0:
         return {"status":"FAILED","reason":"ensurepip failed","stdout":boot.stdout[-4000:],"stderr":boot.stderr[-4000:]}

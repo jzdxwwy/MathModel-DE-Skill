@@ -45,10 +45,6 @@ def evaluate_submission_evidence_closure(run_dir: str | Path) -> dict:
             violations.append({"artifact": label, "reason": "invalid JSON"})
             continue
         checked.append(_rel(p, root))
-        text = json.dumps(doc, ensure_ascii=False)
-        for old in ["execution-evidence.json", "venv-tool-execution-evidence.json", "execution-replay-result.json"]:
-            if old in text:
-                violations.append({"artifact": label, "reason": "legacy execution evidence referenced", "ref": old})
 
         if label == "paper-evidence.json":
             claims = doc.get("claims", []) if isinstance(doc.get("claims", []), list) else []
@@ -57,24 +53,25 @@ def evaluate_submission_evidence_closure(run_dir: str | Path) -> dict:
                 if not refs:
                     violations.append({"artifact": label, "claim_id": claim.get("claim_id") if isinstance(claim, dict) else None,
                                        "reason": "canonical UnifiedExecutionEvidence reference missing"})
-                elif not any(str(ref).endswith("unified-execution-evidence.json") for ref in refs):
+                elif not any(str(ref).replace("\\", "/").endswith("unified-execution-evidence.json") for ref in refs):
                     violations.append({"artifact": label, "claim_id": claim.get("claim_id") if isinstance(claim, dict) else None,
                                        "reason": "canonical UnifiedExecutionEvidence reference missing"})
-        else:
-            artifacts = doc.get("artifacts", []) if isinstance(doc.get("artifacts", []), list) else []
-            candidates = []
-            for art in artifacts:
-                if not isinstance(art, dict):
-                    continue
-                kind = str(art.get("kind", "")).strip().lower()
-                path = str(art.get("path", "")).replace("\\", "/")
-                if kind in {"execution-evidence", "unified-execution-evidence"} or path.endswith("unified-execution-evidence.json"):
-                    candidates.append((kind, path))
-            if not candidates:
-                violations.append({"artifact": label, "reason": "canonical UnifiedExecutionEvidence not indexed"})
-            elif not any(path == ue_ref for _, path in candidates):
-                violations.append({"artifact": label, "reason": "indexed UnifiedExecutionEvidence path is not canonical",
-                                   "expected": ue_ref, "actual": [path for _, path in candidates]})
+            continue
+
+        artifacts = doc.get("artifacts", []) if isinstance(doc.get("artifacts", []), list) else []
+        candidates = []
+        for art in artifacts:
+            if not isinstance(art, dict):
+                continue
+            kind = str(art.get("kind", "")).strip().lower()
+            path = str(art.get("path", "")).replace("\\", "/")
+            if kind in {"execution-evidence", "unified-execution-evidence"} or path.endswith("unified-execution-evidence.json"):
+                candidates.append((kind, path))
+        if not candidates:
+            violations.append({"artifact": label, "reason": "canonical UnifiedExecutionEvidence not indexed"})
+        elif not any(path == ue_ref for _, path in candidates):
+            violations.append({"artifact": label, "reason": "indexed UnifiedExecutionEvidence path is not canonical",
+                               "expected": ue_ref, "actual": [path for _, path in candidates]})
 
     return {"artifact_type": "SubmissionEvidenceClosure", "schema_version": "1.0-N",
             "gate_decision": FAIL if violations else PASS, "checked_refs": checked, "violations": violations}

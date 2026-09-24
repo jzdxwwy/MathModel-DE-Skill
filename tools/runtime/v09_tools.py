@@ -1,14 +1,14 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
-from .template_adapter import execute_tabular_template, InputBlocked
 from .v09c_contracts import validate_binding
-from .expression_adapter import optimize, sensitivity, monte_carlo
 
 def _tab(**k):
+ from .template_adapter import execute_tabular_template
  r=execute_tabular_template(Path(k['repo_root']),Path(k['project_dir']),Path(k['run_dir']),str(k['model_id']),dict(k.get('binding') or {})); return {'execution_mode':'numerical_template','outputs':r.outputs,'metrics':r.metrics,'artifacts':r.artifacts}
 
 def _time(**k):
+ from .template_adapter import InputBlocked
  b=dict(k.get('binding') or {}); validate_binding('time_series_baseline',b)
  import pandas as pd, json, os
  p=Path(k['project_dir']).resolve(); src=Path(b['data_path']); src=src if src.is_absolute() else p/src
@@ -23,6 +23,7 @@ def _time(**k):
  man=run/'results'/'time_series_manifest.json'; notes=json.loads(json.loads(man.read_text())['notes']); return {'execution_mode':'numerical_template','outputs':[{'name':'mean_MAE','value':notes['mean_MAE'],'unit':'error'},{'name':'mean_RMSE','value':notes['mean_RMSE'],'unit':'error'}],'metrics':notes,'artifacts':[{'kind':'csv','path':str(run/'results'/'time_series_cv.csv'),'description':'rolling-origin metrics'}]}
 
 def _graph(**k):
+ from .template_adapter import InputBlocked
  b=dict(k.get('binding') or {}); validate_binding('shortest_path',b); import pandas as pd,json,os
  p=Path(k['project_dir']).resolve(); src=Path(b['data_path']); src=src if src.is_absolute() else p/src
  if not src.exists(): raise InputBlocked(f'data_path does not exist: {src}')
@@ -36,6 +37,7 @@ def _graph(**k):
  r=json.loads((run/'results'/'shortest_path.json').read_text()); return {'execution_mode':'numerical_template','outputs':[{'name':'distance','value':r['distance'],'unit':'path_weight'},{'name':'path','value':r['path'],'unit':'nodes'}],'metrics':{},'artifacts':[{'kind':'json','path':str(run/'results'/'shortest_path.json'),'description':'shortest path'}]}
 
 def _trajectory(**k):
+ from .template_adapter import InputBlocked
  b=dict(k.get('binding') or {}); validate_binding('mechanism_simulation',b); import pandas as pd
  p=Path(k['project_dir']).resolve(); src=Path(b['data_path']); src=src if src.is_absolute() else p/src
  if not src.exists(): raise InputBlocked(f'data_path does not exist: {src}')
@@ -52,11 +54,14 @@ def _echo(**k):
         "artifacts": [],
     }
 
-def _expr(fn):
- def h(**k): return {'execution_mode':'explicit_math_expression','outputs':[{'name':'result','value':fn(dict(k.get('binding') or {})),'unit':'structured'}],'metrics':{},'artifacts':[]}
+def _expr(name):
+ def h(**k):
+  from .expression_adapter import optimize, monte_carlo, sensitivity
+  fn={'optimization':optimize,'monte_carlo':monte_carlo,'sensitivity':sensitivity}[name]
+  return {'execution_mode':'explicit_math_expression','outputs':[{'name':'result','value':fn(dict(k.get('binding') or {})),'unit':'structured'}],'metrics':{},'artifacts':[]}
  return h
 
 def register_default_tools(registry):
  from .tool_registry import ToolSpec
- hs={'echo':_echo,'python.baseline_regression':_tab,'python.model_compare':_tab,'python.classification_cv':_tab,'python.time_series_cv':_time,'python.optimization':_expr(optimize),'python.graph_shortest_path':_graph,'python.monte_carlo':_expr(monte_carlo),'python.sensitivity':_expr(sensitivity),'python.trajectory_reconstruction':_trajectory}
+ hs={'echo':_echo,'python.baseline_regression':_tab,'python.model_compare':_tab,'python.classification_cv':_tab,'python.time_series_cv':_time,'python.optimization':_expr('optimization'),'python.graph_shortest_path':_graph,'python.monte_carlo':_expr('monte_carlo'),'python.sensitivity':_expr('sensitivity'),'python.trajectory_reconstruction':_trajectory}
  for n,h in hs.items(): registry.register(ToolSpec(name=n,purpose='V0.9-C numerical adapter',handler=h,input_names=['task_id','model_id','project_dir','run_dir','binding'],output_names=['ResultBundle']))

@@ -43,11 +43,20 @@ def _trajectory(**k):
  m=_load_module(Path(k['repo_root'])/'05_python/templates/trajectory_reconstruction.py'); df=m.read_table(src,b.get('sep')); ev,tr=m.reconstruct(df,b['entity_col'],b['time_col'],b['node_col'],b.get('max_gap_minutes')); out=Path(k['run_dir'])/'results'/'trajectory'; out.mkdir(parents=True,exist_ok=True); ep=out/'ordered_events.csv'; tp=out/'transitions.csv'; ev.to_csv(ep,index=False); tr.to_csv(tp,index=False)
  return {'execution_mode':'numerical_template','outputs':[{'name':'input_rows','value':len(df),'unit':'rows'},{'name':'transitions','value':len(tr),'unit':'events'}],'metrics':{'uncertain_gap_count':int(tr.get('gap_exceeds_limit',pd.Series(dtype=bool)).sum())},'artifacts':[{'kind':'csv','path':str(ep),'description':'ordered events'},{'kind':'csv','path':str(tp),'description':'transitions'}]}
 
+def _echo(**k):
+    """Deterministic registry smoke-test tool for the fixed entrypoint."""
+    return {
+        "execution_mode": "registered_echo",
+        "outputs": list(k.get("outputs") or []),
+        "metrics": {},
+        "artifacts": [],
+    }
+
 def _expr(fn):
  def h(**k): return {'execution_mode':'explicit_math_expression','outputs':[{'name':'result','value':fn(dict(k.get('binding') or {})),'unit':'structured'}],'metrics':{},'artifacts':[]}
  return h
 
 def register_default_tools(registry):
  from .tool_registry import ToolSpec
- hs={'python.baseline_regression':_tab,'python.model_compare':_tab,'python.classification_cv':_tab,'python.time_series_cv':_time,'python.optimization':_expr(optimize),'python.graph_shortest_path':_graph,'python.monte_carlo':_expr(monte_carlo),'python.sensitivity':_expr(sensitivity),'python.trajectory_reconstruction':_trajectory}
+ hs={'echo':_echo,'python.baseline_regression':_tab,'python.model_compare':_tab,'python.classification_cv':_tab,'python.time_series_cv':_time,'python.optimization':_expr(optimize),'python.graph_shortest_path':_graph,'python.monte_carlo':_expr(monte_carlo),'python.sensitivity':_expr(sensitivity),'python.trajectory_reconstruction':_trajectory}
  for n,h in hs.items(): registry.register(ToolSpec(name=n,purpose='V0.9-C numerical adapter',handler=h,input_names=['task_id','model_id','project_dir','run_dir','binding'],output_names=['ResultBundle']))

@@ -1,6 +1,6 @@
 """V1.0-K/M fixed module executor."""
 from __future__ import annotations
-import hashlib,json,subprocess,uuid
+import hashlib,json,os,subprocess,uuid
 from pathlib import Path
 from typing import Any,Callable
 
@@ -38,9 +38,17 @@ class VenvToolExecutor:
         payload=(root/contract["payload_path"]).resolve()
         if root not in payload.parents or not payload.is_file(): raise ValueError("invalid payload path")
         isolation_id="venv-"+uuid.uuid4().hex
+
+        # The fixed entrypoint is repository-owned. A fresh venv does not have
+        # this source package installed, so expose only the trusted project root.
+        host_root=Path(__file__).resolve().parents[2]
+        env=os.environ.copy()
+        old_pythonpath=env.get("PYTHONPATH","")
+        env["PYTHONPATH"]=str(host_root)+(os.pathsep+old_pythonpath if old_pythonpath else "")
+
         proc=subprocess.run(
             [str(interpreter),"-m",module,"--tool",contract["tool"],"--payload",str(payload),"--output",str(execution)],
-            shell=False,cwd=str(root),capture_output=True,text=True,check=False)
+            shell=False,cwd=str(root),env=env,capture_output=True,text=True,check=False)
         log={"run_id":contract["run_id"],"isolation_id":isolation_id,"adapter_id":contract["adapter_id"],"tool":contract["tool"],"interpreter":str(interpreter),"input_hashes":contract.get("input_hashes",[]),"lock_hash":contract["lock_hash"],"environment_fingerprint":contract["environment_fingerprint"],"returncode":proc.returncode,"stdout_tail":proc.stdout[-4000:],"stderr_tail":proc.stderr[-4000:]}
         lp=execution/"execution.log"
         lp.write_text(json.dumps(log,ensure_ascii=False,indent=2,sort_keys=True),encoding="utf-8")

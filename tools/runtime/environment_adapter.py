@@ -9,9 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import platform
-import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Protocol
 
 PASS, FAIL, NOT_RUN = "PASS", "FAIL", "NOT_RUN"
@@ -25,6 +23,12 @@ def _fingerprint(value: dict[str, Any]) -> str:
     return hashlib.sha256(_canonical(value).encode("utf-8")).hexdigest()
 
 
+def _closure_fingerprint(value: dict[str, Any]) -> str:
+    payload = dict(value)
+    payload.pop("fingerprint", None)
+    return _fingerprint(payload)
+
+
 class EnvironmentAdapter(Protocol):
     adapter_id: str
     kind: str
@@ -35,11 +39,7 @@ class EnvironmentAdapter(Protocol):
 
 @dataclass
 class DeclarativeEnvironmentAdapter:
-    """Safe adapter for declared/observed environments.
-
-    It does not create an environment. A trusted Host may subclass or wrap it
-    to perform actual isolated execution and then return observed evidence.
-    """
+    """Safe adapter for declared/observed environments."""
 
     adapter_id: str
     kind: str = "HOST"
@@ -76,7 +76,6 @@ def capture_runtime_environment(*, packages: list[dict[str, Any]] | None = None,
                                  model_refs: list[str] | None = None,
                                  spec_refs: list[str] | None = None,
                                  adapter_id: str = "host-observed") -> dict[str, Any]:
-    """Capture deterministic runtime metadata; file hashes must be supplied by caller."""
     closure = {
         "artifact_type": "EnvironmentClosure",
         "schema_version": "1.0-E",
@@ -97,15 +96,20 @@ def capture_runtime_environment(*, packages: list[dict[str, Any]] | None = None,
 
 
 def verify_clean_room_evidence(reference: dict[str, Any], observed: dict[str, Any]) -> dict[str, Any]:
-    """Compare two closures without treating missing execution evidence as success."""
+    """Reject stale fingerprints before comparing the declared environment."""
     if not reference or not observed:
         return {"decision": NOT_RUN, "reason": "reference or observed environment closure missing"}
-    if reference.get("fingerprint") == observed.get("fingerprint"):
-        return {"decision": PASS, "mismatches": []}
+
     mismatches: list[str] = []
+    if reference.get("fingerprint") != _closure_fingerprint(reference):
+        mismatches.append("reference_fingerprint_integrity")
+    if observed.get("fingerprint") != _closure_fingerprint(observed):
+        mismatches.append("observed_fingerprint_integrity")
+
     for key in sorted(set(reference) | set(observed)):
         if key == "fingerprint":
             continue
         if reference.get(key) != observed.get(key):
             mismatches.append(key)
-    return {"decision": FAIL, "mismatches": mismatches}
+
+    return {"decision": FAIL if mismatches else PASS, "mismatches": mismatches}

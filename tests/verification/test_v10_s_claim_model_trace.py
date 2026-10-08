@@ -6,6 +6,7 @@ def base(tmp):
  w(tmp/"paper-evidence.json",{"claims":[{"claim_id":"C1","model_id":"M1","equation_observations":[{"expression":"y = a x + b","model_ref":"equation:0"}],"parameter_observations":[{"symbol":"a","value":2.0,"unit":""}]}]})
  w(tmp/"claim-evidence-index.json",{"claims":[{"claim_id":"C1","model_id":"M1"}]})
  w(tmp/"reference/modeling/model-spec.json",{"artifact_type":"ModelSpec","model_id":"M1","equations":["y = a x + b"],"parameters":[{"symbol":"a","meaning":"slope","value":2.0,"source":"fit"}]})
+ w(tmp/"reference/execution/result-bundle.json",{"artifact_type":"ResultBundle","schema_version":"0.9","status":"FROZEN","run_id":tmp.name,"model_id":"M1","outputs":[],"metrics":{},"provenance":{"input_refs":[],"code_ref":"tool"}}
 def test_s_pass(tmp_path):
  base(tmp_path); assert evaluate_claim_model_trace(tmp_path)["gate_decision"]=="PASS"
 def test_s_equation_mismatch(tmp_path):

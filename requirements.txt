@@ -1,0 +1,26 @@
+# MathModel-DE-Skill dependencies for the runtime, the numerical templates and
+# the full test suite.
+#
+#   python -m pip install -r requirements.txt
+#
+# Versions are intentionally unpinned here: this file describes *what* has to be
+# importable, not the exact environment a run was executed in. Deterministic,
+# hash-closed execution environments are the job of the V1.0-G/J dependency-lock
+# and dependency-materialization mechanism, not of this file.
+#
+# Keep this list in sync with tests/ and tools/: a package missing here makes the
+# full regression fail in CI.
+
+# Numerical modelling templates (05_python/templates/) and runtime adapters.
+numpy
+pandas
+scipy
+sympy
+scikit-learn
+openpyxl
+
+# Artifact contract validation (artifacts/schemas/).
+jsonschema
+
+# Test runner.
+pytest

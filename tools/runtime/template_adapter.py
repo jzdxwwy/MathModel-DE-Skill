@@ -84,6 +84,12 @@ def execute_tabular_template(repo_root: Path, project_dir: Path, run_dir: Path, 
     if filename is None:
         raise InputBlocked(f"no V0.9-B tabular adapter for model: {model_id}")
 
+    # Templates are executed with the run directory as CWD, so it must exist
+    # before the adapter chdirs into it. CSV inputs previously skipped the
+    # directory creation performed by _prepare_csv.
+    run_dir = Path(run_dir)
+    run_dir.mkdir(parents=True, exist_ok=True)
+
     data_path = _resolve_data_path(project_dir, binding)
     csv_path = _prepare_csv(data_path, run_dir)
     target = binding.get("target")

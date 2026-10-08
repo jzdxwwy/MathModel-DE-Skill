@@ -42,7 +42,25 @@ SKILL.md
 08_verification/
 knowledge/
 benchmarks/
+requirements.txt
+pytest.ini
+TEST_STATUS.md
 ```
+
+## 快速开始
+
+```bash
+git clone https://github.com/jzdxwwy/MathModel-DE-Skill.git
+cd MathModel-DE-Skill
+python -m pip install -r requirements.txt
+python -m pytest -q
+```
+
+## 测试状态
+
+全部测试实际执行结果、修复前的失败基线、以及每条证据的适用边界，见 [TEST_STATUS.md](TEST_STATUS.md)。
+
+裸 `pytest` 与 `python -m pytest` 均可运行（`pytest.ini` 已把仓库根加入导入路径）。
 
 ## 计划中的竞赛知识库
 

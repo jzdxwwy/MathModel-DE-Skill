@@ -763,3 +763,28 @@ V4.1 正式从“验证系统”转入“能力 Benchmark”，但仍不直接�
 - 缺失输入时明确 BLOCKED / NOT_RUN。
 
 V4.1 新增 `tools/benchmark/benchmark_runner.py`、Benchmark schemas、benchmark smoke tests 和治理文档。V4.2 再将真实附件接入 Input Boundary / DataProfile。
+
+
+## 53. 实测测试状态（2026-10-08）
+
+前面各版本小节中"本次会话没有实际运行 pytest"是**当时会话**的记录（历史保持原样）。现在已有真实执行证据：
+
+- 命令：`python -m pytest -q`（仓库根目录）
+- 结果：**141 passed, 0 failed, 0 errors**，耗时约 4 秒
+- 修复前基线：3 failed, 138 passed
+- 解释器：CPython 3.14.6 (Windows x64)，仓库版本 `main` @ `9a005f1`
+- 裸 `pytest`（不带 `-m`）同样可收集全部 141 个用例
+
+本次实测同时修复了 3 个真实缺陷与 3 个工程/CI 缺口，明细见根目录 `TEST_STATUS.md`：
+
+1. `artifacts/schemas/model-plan.schema.json` 是坏 JSON（52 个 schema 中唯一不可解析者），
+   导致 `selection_principles` / `d_or_e_prior` 层级错误；
+2. `tools/runtime/template_adapter.py` 在 CSV 输入下因运行目录未创建而 `FileNotFoundError`；
+3. `tests/verification/test_v10_final_submission_gate.py` 的断言与 Final Submission Gate
+   契约自相矛盾——**改的是测试，门禁语义未改动**；
+4. CI 依赖清单不全（缺 numpy/pandas/scipy/sympy/scikit-learn）→ 新增 `requirements.txt`；
+5. 缺少 `pytest.ini`，裸 `pytest` 产生 46 个收集错误；
+6. 缺少 `.gitignore`，缓存与测试临时产物持续污染 `git status`。
+
+**边界（不因 141 passed 而改变）：** 尚未观察到 GitHub Actions 上的真实 CI 运行；
+F7–F15 环境链门禁在 fixture 中仍为 `NOT_RUN`；Benchmark 尚未使用真实附件执行。

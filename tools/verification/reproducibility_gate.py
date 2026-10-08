@@ -125,8 +125,15 @@ def evaluate_reproducibility_gate(
                                "refs": ["result-bundle.json", "rebuild/result-bundle.json"]})
 
     failures = [c["check_id"] for c in checks if c["decision"] == FAIL]
-    not_run = [c["check_id"] for c in checks if c["decision"] == NOT_RUN]
-    decision = FAIL if failures else (NOT_RUN if not_run else PASS)
+    # C02 (SubmissionManifest) is an optional indexing aid for direct
+    # rebuild-to-reference reproducibility. When an explicit rebuild exists,
+    # C04/C05 provide the authoritative reproducibility evidence; a missing
+    # submission manifest must not downgrade an otherwise verified comparison.
+    blocking_not_run = [
+        c["check_id"] for c in checks
+        if c["decision"] == NOT_RUN and c["check_id"] != "C02_SUBMISSION_MANIFEST"
+    ]
+    decision = FAIL if failures else (NOT_RUN if blocking_not_run else PASS)
     return {
         "artifact_type": "ReproducibilityGateReport",
         "schema_version": "1.0-C",

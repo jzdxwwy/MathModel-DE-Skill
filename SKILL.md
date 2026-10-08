@@ -775,16 +775,19 @@ V4.1 新增 `tools/benchmark/benchmark_runner.py`、Benchmark schemas、benchmar
 - 解释器：CPython 3.14.6 (Windows x64)，仓库版本 `main` @ `9a005f1`
 - 裸 `pytest`（不带 `-m`）同样可收集全部 141 个用例
 
-本次实测同时修复了 3 个真实缺陷与 3 个工程/CI 缺口，明细见根目录 `TEST_STATUS.md`：
+本次实测同时修复了 3 个真实缺陷与 4 个工程/CI 缺口，明细见根目录 `TEST_STATUS.md`：
 
 1. `artifacts/schemas/model-plan.schema.json` 是坏 JSON（52 个 schema 中唯一不可解析者），
    导致 `selection_principles` / `d_or_e_prior` 层级错误；
 2. `tools/runtime/template_adapter.py` 在 CSV 输入下因运行目录未创建而 `FileNotFoundError`；
 3. `tests/verification/test_v10_final_submission_gate.py` 的断言与 Final Submission Gate
    契约自相矛盾——**改的是测试，门禁语义未改动**；
-4. CI 依赖清单不全（缺 numpy/pandas/scipy/sympy/scikit-learn）→ 新增 `requirements.txt`；
-5. 缺少 `pytest.ini`，裸 `pytest` 产生 46 个收集错误；
-6. 缺少 `.gitignore`，缓存与测试临时产物持续污染 `git status`。
+4. **CI 的测试结果不可信**：三个测试步骤写作 `pytest ... | tee ...`，而默认 shell 不含
+   `pipefail`，pytest 的退出码被 `tee` 吞掉，步骤一律记为 success，最终门禁步骤永远
+   不会失败 → 三个步骤补 `set -o pipefail`；
+5. CI 依赖清单不全（缺 numpy/pandas/scipy/sympy/scikit-learn）→ 新增 `requirements.txt`；
+6. 缺少 `pytest.ini`，裸 `pytest` 产生 46 个收集错误；
+7. 缺少 `.gitignore`，缓存与测试临时产物持续污染 `git status`。
 
 **边界（不因 141 passed 而改变）：** 尚未观察到 GitHub Actions 上的真实 CI 运行；
 F7–F15 环境链门禁在 fixture 中仍为 `NOT_RUN`；Benchmark 尚未使用真实附件执行。

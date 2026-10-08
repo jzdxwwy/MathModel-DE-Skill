@@ -58,27 +58,53 @@ CSV 输入路径下 `os.chdir(run_dir)` 抛出 `FileNotFoundError`。
 这是**测试写错了，不是门禁写错了**，所以修的是测试：改为断言必需检查全部 PASS、无阻断失败，
 且总体保持 `NOT_RUN`，并补上引用治理契约的说明。门禁语义未改动。
 
-## 3. 同时修复的工程/CI 缺口
+## 3. 同时修复的工程 / CI 缺口
 
 这些不会让本地 pytest 失败，但会让仓库或 CI 在实际使用时失效。
 
-### 3.1 CI 依赖清单不完整
+### 3.1 CI 的测试结果不可信（缺少 pipefail）——最严重的一项
 
-`.github/workflows/v10-v3-integration.yml` 原先只安装 `pytest jsonschema`，而
-`tests/` 与 `tools/` 在导入阶段就需要 `numpy`、`pandas`、`scipy`、`sympy`、`scikit-learn`。
-其他步骤先不论，仅 full-regression 就必然失败。
+三个测试步骤原本都写成：
+
+```bash
+python -m pytest ... | tee artifacts/ci/xxx.log
+```
+
+GitHub Actions 在 Linux 上的默认 shell 是 `bash -e`，**不包含 `pipefail`**。因此管道的退出码
+等于最后一个命令 `tee` 的退出码，恒为 0：pytest 失败不会让步骤失败，`continue-on-error`
+永远不会触发，最后那一步 `Fail workflow if any test layer failed` 也就永远不会失败。
+
+**结论：这个工作流此前的绿灯不能作为"测试通过"的证据。**
+
+需要说清楚的边界：GitHub 的步骤耗时是**秒级精度**，而本地 `tests/verification/` 实测只需
+0.87 秒。因此 run #50 / #51 记录的 1 秒 / 0 秒 / 2 秒，**既符合"测试真的跑了并通过"，也符合
+"测试在导入阶段报错后快速退出"**，单凭耗时无法区分二者。能够确定的是：失败会被管道吞掉。
+
+修复：三个步骤都加 `set -o pipefail`（并补上原先只有第一步才有的 `mkdir -p artifacts/ci`），
+保留 `tee` 以继续产出 CI 日志与 JUnit XML。
+
+### 3.2 CI 依赖清单不完整
+
+工作流原先只安装 `pytest jsonschema`，而测试在**导入阶段**就需要 `numpy`、`pandas`、
+`scipy`、`sympy`、`scikit-learn`：例如 `tools/runtime/template_adapter.py` 顶层
+`import pandas`，`tools/runtime/expression_adapter.py` 顶层 `import numpy / scipy / sympy`，
+`tests/smoke_test.py` 顶层 `import numpy / pandas`。缺依赖会让收集阶段直接报错，
+而这些错误此前被 3.1 的管道吞掉，表现为"步骤成功"。
 
 修复：新增根目录 `requirements.txt` 作为运行时 + 测试依赖的单一来源，CI 改为
 `python -m pip install -r requirements.txt`。
 
-### 3.2 裸 `pytest` 无法收集测试
+该缺口是否已经实际导致 CI 上的收集失败，此前被 3.1 的管道掩盖而无法判定；pipefail 修好后，
+下一次 CI 运行会给出明确答案（届时本文件会补上真实结论）。
+
+### 3.3 裸 `pytest` 无法收集测试
 
 测试以 `tools.*` 导入仓库包，但仓库根不在 `sys.path`。此前只有 `python -m pytest`
 能工作，裸 `pytest` 会产生 **46 个收集错误**。
 
 修复：新增 `pytest.ini`（`pythonpath = .`、`testpaths = tests`）。
 
-### 3.3 仓库没有 `.gitignore`
+### 3.4 仓库没有 `.gitignore`
 
 `__pycache__/`、`.pytest_cache/`、`tests/_smoke_workspace/`（由 `tests/smoke_test.py` 生成的
 临时产物）会持续污染 `git status`。已补 `.gitignore`；修复后 `git status` 只剩预期的源码改动。

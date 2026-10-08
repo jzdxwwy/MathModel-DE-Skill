@@ -22,24 +22,34 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      # NOTE: `set -o pipefail` is required. Without it the exit status of
+      # `pytest | tee` is tee's status (always 0), so a failing test layer is
+      # still recorded as `success`, `continue-on-error` never triggers, and the
+      # final "Fail workflow if any test layer failed" step cannot fail. That
+      # made the whole workflow green regardless of test outcome.
       - name: Run integration tests
         id: integration
         continue-on-error: true
         run: |
+          set -o pipefail
           mkdir -p artifacts/ci
-          python -m pytest tests/integration/ -q --junitxml=artifacts/ci/integration-junit.xml | tee artifacts/ci/integration.log
+          python -m pytest tests/integration/ -q --junitxml=artifacts/ci/integration-junit.xml 2>&1 | tee artifacts/ci/integration.log
 
       - name: Run verification tests
         id: verification
         continue-on-error: true
         run: |
-          python -m pytest tests/verification/ -q --junitxml=artifacts/ci/verification-junit.xml | tee artifacts/ci/verification.log
+          set -o pipefail
+          mkdir -p artifacts/ci
+          python -m pytest tests/verification/ -q --junitxml=artifacts/ci/verification-junit.xml 2>&1 | tee artifacts/ci/verification.log
 
       - name: Run full regression
         id: regression
         continue-on-error: true
         run: |
-          python -m pytest -q --junitxml=artifacts/ci/full-regression-junit.xml | tee artifacts/ci/full-regression.log
+          set -o pipefail
+          mkdir -p artifacts/ci
+          python -m pytest -q --junitxml=artifacts/ci/full-regression-junit.xml 2>&1 | tee artifacts/ci/full-regression.log
 
       - name: Collect CI summary
         if: always()

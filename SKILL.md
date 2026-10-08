@@ -789,5 +789,8 @@ V4.1 新增 `tools/benchmark/benchmark_runner.py`、Benchmark schemas、benchmar
 6. 缺少 `pytest.ini`，裸 `pytest` 产生 46 个收集错误；
 7. 缺少 `.gitignore`，缓存与测试临时产物持续污染 `git status`。
 
-**边界（不因 141 passed 而改变）：** 尚未观察到 GitHub Actions 上的真实 CI 运行；
-F7–F15 环境链门禁在 fixture 中仍为 `NOT_RUN`；Benchmark 尚未使用真实附件执行。
+**CI 复核：** commit `8eb68a6`（GitHub Actions run #52）在 `set -o pipefail` 生效后仍为
+`success`，步骤级 integration / verification / full-regression 均为 `success`。
+
+**边界（不因 141 passed 而改变）：** F7–F15 环境链门禁在 fixture 中仍为 `NOT_RUN`；
+Benchmark 尚未使用真实附件执行；修复前的 CI 绿灯无法追溯真实含义，不作为曾经通过的证据。

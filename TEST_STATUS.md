@@ -14,6 +14,7 @@
 | 执行日期 | 2026-10-08 |
 | 仓库版本 | `main` @ `9a005f1` |
 | 解释器 | CPython 3.14.6 (Windows x64) |
+| GitHub Actions | run #52（commit `8eb68a6`）**success**，且 `set -o pipefail` 已生效 |
 
 裸 `pytest`（不带 `-m`）同样可收集全部 141 个用例——这依赖本仓库新增的 `pytest.ini`。
 
@@ -94,8 +95,9 @@ GitHub Actions 在 Linux 上的默认 shell 是 `bash -e`，**不包含 `pipefai
 修复：新增根目录 `requirements.txt` 作为运行时 + 测试依赖的单一来源，CI 改为
 `python -m pip install -r requirements.txt`。
 
-该缺口是否已经实际导致 CI 上的收集失败，此前被 3.1 的管道掩盖而无法判定；pipefail 修好后，
-下一次 CI 运行会给出明确答案（届时本文件会补上真实结论）。
+这里需要区分两件事：**测试代码确实在导入阶段依赖这些包**，这由源码直接确定；
+而"CI 上是否真的因此失败过"**无法追溯**——修复前的运行无论成败都记为 success，
+其日志证据也不足以区分。补全依赖清单本身是正确做法，不依赖上述判定。
 
 ### 3.3 裸 `pytest` 无法收集测试
 
@@ -120,8 +122,11 @@ python -m pytest -q
 
 ## 5. 本证据的边界（不得夸大）
 
-- 以上是**本机**代码级单元/集成测试结果。**尚未**观察到 GitHub Actions 上的真实 CI 运行；
-  工作流改动要推送后才能验证。
+- 以上本机结果**已由 GitHub Actions 复核**：commit `8eb68a6`（run #52）在 `set -o pipefail`
+  生效后仍为 `success`，步骤级 integration / verification / full-regression 均为 `success`，
+  最终门禁步骤通过。因为 pipefail 已生效，这次绿灯**能够**在测试失败时变红，与修复前
+  "无论成败都绿"不同，因此它才是可信信号。
+- 修复前的 CI 绿灯（run #50、#51）无法追溯其真实含义，**不作为"曾经通过"的证据**。
 - 测试覆盖的是门禁、契约和证据链的**代码行为**，不代表任何真实 D/E 题已被求解。
 - 需要真实运行环境证据的门禁（F7–F15：rebuild、environment closure、clean-room execution、
   execution replay、host/dependency materialization、venv tool execution）在 fixture 中仍然是

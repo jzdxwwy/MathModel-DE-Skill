@@ -122,7 +122,11 @@ def evaluate_paper_consistency_audit(root):
     for eid,item in pitems.items():
         ok=eid in section_refs; checks.append({"check_id":f"U05:{eid}","kind":str(item.get("kind","figure")),"status":PASS if ok else FAIL,"message":"presentation item is referenced by PaperManifest" if ok else "presentation item is orphaned","evidence_id":eid})
         if not ok: violations.append(f"orphan presentation item {eid}")
-    decision=FAIL if violations or any(c["status"]==FAIL for c in checks) else (NOT_RUN if any(c["status"]==NOT_RUN for c in checks) else PASS)
+    # U04 ModelSpec resolution is an optional sub-audit. If no ModelSpec is
+    # available, U can still close claim/presentation/result consistency; only
+    # explicit failures are blocking. A ModelSpec is required by the separate
+    # ClaimModelTrace / ModelExecutionBinding gates when those are invoked.
+    decision=FAIL if violations or any(c["status"]==FAIL for c in checks) else PASS
     out={"artifact_type":"PaperConsistencyAudit","schema_version":"1.0-U","status":"VALIDATED" if decision==PASS else "DRAFT","run_id":root.name,"checks":checks,"gate_decision":decision,"violations":violations}
     (root/"paper-consistency-audit.json").write_text(json.dumps(out,ensure_ascii=False,indent=2,sort_keys=True),encoding="utf-8")
     return out

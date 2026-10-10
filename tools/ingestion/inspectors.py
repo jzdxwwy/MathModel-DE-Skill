@@ -5,6 +5,7 @@ so large CUMCM attachments do not get loaded into memory during ingestion.
 """
 from __future__ import annotations
 
+import codecs
 import csv
 import hashlib
 import json
@@ -20,6 +21,36 @@ MAX_TEXT_BYTES = 1 * 1024 * 1024
 MAX_JSON_PROFILE_BYTES = 20 * 1024 * 1024
 DTYPE_SAMPLE_ROWS = 200
 
+# Chinese competition attachments are frequently GBK/GB18030, not UTF-8. utf-8 is
+# tried first because it is strict; gb18030 is a superset of GBK and almost never
+# rejects a byte sequence.
+TEXT_ENCODINGS = ("utf-8-sig", "gb18030")
+ENCODING_SAMPLE_BYTES = 256 * 1024
+
+
+def detect_text_encoding(path: Path) -> tuple[str, bool]:
+    """Return ``(encoding, lossless)`` for a text file.
+
+    Decoding a GBK file as UTF-8 with ``errors="replace"`` silently yields mojibake
+    -- 2024E's 附件2.csv produced column names like ``'����'`` with no warning at all --
+    while templates reading the same file as UTF-8 hard-fail. Detecting the encoding
+    explicitly makes the choice visible and recordable instead of implicit.
+    """
+    with path.open("rb") as handle:
+        sample = handle.read(ENCODING_SAMPLE_BYTES)
+    for encoding in TEXT_ENCODINGS:
+        # final=False so a sample that stops in the middle of a multi-byte character
+        # is not mistaken for a decode failure. The real 2024E 附件2.csv failed
+        # detection exactly this way: the 256 KB sample cut a GBK character in half
+        # at offset 262143, so a naive decode reported the whole file as undecodable.
+        decoder = codecs.getincrementaldecoder(encoding)()
+        try:
+            decoder.decode(sample, final=False)
+            return encoding, True
+        except UnicodeDecodeError:
+            continue
+    return "utf-8", False
+
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -30,9 +61,10 @@ def sha256_file(path: Path) -> str:
 
 
 def _text_file(path: Path, limit: int = MAX_TEXT_BYTES) -> str:
+    encoding, lossless = detect_text_encoding(path)
     with path.open("rb") as f:
         data = f.read(limit + 1)
-    text = data[:limit].decode("utf-8", errors="replace")
+    text = data[:limit].decode(encoding, errors="strict" if lossless else "replace")
     if len(data) > limit:
         text += "\n[INGESTION_PREVIEW_TRUNCATED]"
     return text
@@ -52,7 +84,8 @@ def _docx_text(path: Path) -> str:
 
 
 def _csv_profile(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as f:
+    encoding, lossless = detect_text_encoding(path)
+    with path.open("r", encoding=encoding, errors="strict" if lossless else "replace", newline="") as f:
         sample = f.read(64 * 1024)
         f.seek(0)
         try:
@@ -83,6 +116,8 @@ def _csv_profile(path: Path) -> dict[str, Any]:
         "empty_cells": empty_cells,
         "duplicate_rows_sample": duplicate_sample,
         "duplicate_scope": "first_5000_rows_only",
+        "encoding": encoding,
+        "encoding_lossless": lossless,
     }
 
 

@@ -157,3 +157,29 @@ def test_unreadable_pdf_problem_is_a_warning_not_a_silent_pass(tmp_path: Path):
     result = ingest_problem(str(path), [])
     assert result.warnings
     assert result.problem["text_chars"] == 0
+
+
+def test_gbk_csv_is_detected_instead_of_silently_mangled(tmp_path: Path):
+    """2024E's 附件2.csv is GB18030, not UTF-8. Reading it as utf-8-sig with
+    errors="replace" produced mojibake column names ('����') and no warning at all."""
+    path = tmp_path / "gbk.csv"
+    path.write_bytes("方向,时间,车牌号\n3,2024-04-03T14:39:08,AF5B7CEM\n".encode("gbk"))
+
+    profile = ingest_problem(None, [str(path)]).attachments[0]["data_profile"]
+
+    assert profile["encoding"] == "gb18030"
+    assert profile["encoding_lossless"] is True
+    assert [c["name"] for c in profile["columns_profile"]] == ["方向", "时间", "车牌号"]
+    assert profile["rows"] == 1
+
+
+def test_encoding_detection_tolerates_a_sample_cut_mid_character(tmp_path: Path, monkeypatch):
+    """The real 2024E 附件2.csv was reported as undecodable because the 256 KB sample
+    ended mid-character at exactly offset 262143."""
+    from tools.ingestion import inspectors
+
+    path = tmp_path / "gbk.csv"
+    path.write_bytes("方向,时间\n3,2024\n".encode("gbk"))
+    monkeypatch.setattr(inspectors, "ENCODING_SAMPLE_BYTES", 1)
+
+    assert inspectors.detect_text_encoding(path) == ("gb18030", True)

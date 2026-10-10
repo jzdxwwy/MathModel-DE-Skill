@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .inspectors import TEXT_ENCODINGS
+
 # Attachments that are expected to yield a tabular profile. A PDF problem
 # statement legitimately has none, so only these suffixes raise a data risk;
 # otherwise every real run would carry a meaningless warning.
@@ -119,6 +121,13 @@ def build_data_profile(attachments: list[dict[str, Any]]) -> dict[str, Any]:
             risks.append(f"{name}: {profile.get('reason', 'profile skipped')}")
         if profile.get("profile_limited"):
             risks.append(f"{name}: {profile['profile_limited']}")
+        if profile.get("encoding_lossless") is False:
+            # Fail closed on undecodable text: decoding with errors="replace" would
+            # silently corrupt column names and values instead of reporting a problem.
+            risks.append(
+                f"{name}: could not be decoded losslessly as any of "
+                f"{', '.join(TEXT_ENCODINGS)}; column names and text may be corrupted"
+            )
 
         if not profile:
             if str(item.get("extension", "")).lower() in TABULAR_SUFFIXES:

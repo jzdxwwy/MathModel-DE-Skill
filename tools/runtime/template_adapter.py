@@ -8,12 +8,15 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+
+from ..ingestion.inspectors import TEXT_ENCODINGS, detect_text_encoding
 
 
 class InputBlocked(RuntimeError):
@@ -65,11 +68,40 @@ def _resolve_sheet(binding: dict[str, Any]) -> Any:
 
 
 def _prepare_csv(data_path: Path, run_dir: Path, sheet: Any = None) -> Path:
-    if data_path.suffix.lower() == ".csv":
-        return data_path
-    if data_path.suffix.lower() in {".tsv", ".txt"}:
-        df = pd.read_csv(data_path, sep="\t")
-    elif data_path.suffix.lower() in {".xlsx", ".xls"}:
+    suffix = data_path.suffix.lower()
+
+    if suffix == ".csv":
+        encoding, lossless = detect_text_encoding(data_path)
+        if not lossless:
+            raise InputBlocked(
+                f"cannot decode {data_path.name} losslessly as any of {', '.join(TEXT_ENCODINGS)}"
+            )
+        if encoding in {"utf-8", "utf-8-sig"}:
+            return data_path
+        # Chinese competition attachments are frequently GBK/GB18030. 2024E's
+        # 附件2.csv is one, and every template reading it as UTF-8 used to hard-fail
+        # with UnicodeDecodeError. Convert once, at the text level, so templates keep
+        # reading plain UTF-8 and memory stays bounded even for 8.8M-row files.
+        csv_path = run_dir / "data" / "input.csv"
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with data_path.open("r", encoding=encoding, newline="") as source, \
+                    csv_path.open("w", encoding="utf-8", newline="") as target:
+                shutil.copyfileobj(source, target)
+        except UnicodeDecodeError as exc:
+            raise InputBlocked(
+                f"{data_path.name} is not decodable as {encoding} all the way through: {exc}"
+            ) from exc
+        return csv_path
+
+    if suffix in {".tsv", ".txt"}:
+        encoding, lossless = detect_text_encoding(data_path)
+        if not lossless:
+            raise InputBlocked(
+                f"cannot decode {data_path.name} losslessly as any of {', '.join(TEXT_ENCODINGS)}"
+            )
+        df = pd.read_csv(data_path, sep="\t", encoding=encoding)
+    elif suffix in {".xlsx", ".xls"}:
         try:
             df = pd.read_excel(data_path, sheet_name=0 if sheet is None else sheet)
         except ValueError as exc:
@@ -82,7 +114,7 @@ def _prepare_csv(data_path: Path, run_dir: Path, sheet: Any = None) -> Path:
     df.columns = [str(c).strip() for c in df.columns]
     csv_path = run_dir / "data" / "input.csv"
     csv_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(csv_path, index=False)
+    df.to_csv(csv_path, index=False, encoding="utf-8")
     return csv_path
 
 

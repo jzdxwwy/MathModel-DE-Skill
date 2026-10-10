@@ -278,3 +278,25 @@ def test_cost_benefit_quadrant_requires_item_identity(tmp_path):
                 "benefit_indicators": [{"name": "点击量"}],
             },
         )
+
+
+def test_gbk_csv_is_transcoded_so_templates_can_read_it(tmp_path):
+    """A GBK .csv used to be handed to the template unchanged, and every template
+    reads with pd.read_csv's default UTF-8 -> UnicodeDecodeError. 2024E's
+    附件2.csv (467 MB, 8.8M rows) is exactly that case."""
+    source = tmp_path / "gbk.csv"
+    lines = ["消费额,点击量"]
+    for i in range(30):
+        lines.append(f"{i + 1},{(i + 1) * 10}")
+    source.write_bytes(("\n".join(lines) + "\n").encode("gbk"))
+
+    result = execute_tabular_template(
+        ROOT,
+        tmp_path,
+        tmp_path / "run",
+        "linear_regression",
+        {"data_path": str(source), "target": "点击量", "features": ["消费额"], "seed": 7},
+    )
+
+    assert result.outputs[0]["value"] == "completed"
+    assert any("baseline_predictions.csv" in x["path"] for x in result.artifacts)

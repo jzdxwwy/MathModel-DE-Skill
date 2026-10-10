@@ -64,7 +64,10 @@ python -m pytest -q
 
 ## 计划中的竞赛知识库
 
-重点整理 2021—2025 年 D/E 题，并优先建设 2024D、2024E、2025D、2025E benchmark。
+重点整理 2021—2026 年 D/E 题，并优先建设 2024D、2024E、2025D、2025E benchmark。
+此外 `benchmarks/2026D`、`benchmarks/2026E` 已接入**真实题目与附件**：2026E 输入就绪，
+2026D 因附件 2 模板缺失而为 BLOCKED。详见各自 README 与
+[`benchmarks/CAPABILITY_PROBE_2026DE.md`](benchmarks/CAPABILITY_PROBE_2026DE.md)。
 
 知识库不以简单收集论文为目标，而是提取：
 

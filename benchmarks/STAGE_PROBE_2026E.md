@@ -192,7 +192,62 @@ time_series_baseline  sheet="Sheet2"  time_col="日期"  target="新注册数"
 仍待解决：`clustering`/`pca`/`mechanism_simulation`/`shortest_path` 无可用实现或契约不符；
 阶段 00/01 仍无法脱离 LLM。
 
-## 6. 边界（不得夸大）
+## 6. 第 4 轮：补上综合评价模型族（问题 1 那条线）
+
+阶段 04 打通后，真正的瓶颈变成"目录里没有 2026E 需要的模型族"。第 4 轮先补最独立、
+最可验证的一条：**综合评价**。
+
+### 6.1 补了什么
+
+| 变更 | 说明 |
+| --- | --- |
+| `model_selector.KEYWORDS` 新增 `evaluation` | 此前**根本没有"评价"这一组**，2026E 问题 1（从四方面评价合理性）只能被误判成 `time_series` |
+| `model_catalog` 新增 `entropy_topsis` 族 | `("evaluation",)`，工具 `python.entropy_topsis` |
+| 新增 `05_python/templates/entropy_topsis.py` | 熵权法 + TOPSIS，完全数据驱动，指标与方向由调用方显式声明 |
+| `template_adapter` 新增 `evaluation` 绑定分支 | 评价任务**没有因变量**，强行走 `target/features` 契约是错的；改为 `entity` + `indicators`，并对缺失实体、未知列 fail closed |
+| 新增 `knowledge/评价方法_熵权TOPSIS.md` | 方法步骤、六个必须写进论文的局限、与 AHP/灰色关联/PCA 的取舍 |
+
+### 6.2 一处方法学修正
+
+初版模板是"先按行算比率、再对行取平均"，即
+
+```
+CTR = mean(每日点击量 / 每日展现量)     ✗
+```
+
+这会让展现量极小的那些天主导结果，是对数据的隐性加权。已改为**先聚合再相除**：
+
+```
+CTR = Σ点击量 / Σ展现量                ✓
+```
+
+### 6.3 实测（真实 `附件1.xlsx` Sheet1，2627 行）
+
+```
+task_type : evaluation            （此前会被误判成 time_series）
+selected  : entropy_topsis
+
+entity_col : 推广单元ID      aggregate : sum      entities : 12
+indicators : CTR=点击量/展现量(+)、首位展现占比=上方首位展现量/展现量(+)、
+             上方位点击占比=上方位点击量/点击量(+)、单次点击成本=消费额/点击量(-)
+entropy weights : CTR 0.5453 | 首位展现占比 0.2889 | 上方位点击占比 0.0795 | 单次点击成本 0.0863
+zero-variance   : []
+-> canonical ResultBundle: status=VALIDATED, schema valid=True
+```
+
+同一模板换粒度（`entity=方案ID`，5 个方案）也直接可用。其中方案 `495403620` 的
+`closeness = 1.0`、`d_plus = 0.0`，经核对它在四个指标上**同时最优**，是正确结果而非缺陷。
+
+权重、方向、指标定义与输入哈希全部写入 manifest，因此排名可沿
+`排名 → scores.csv → 指标定义 → 原始附件` 回溯。
+
+### 6.4 边界
+
+这**不是**问题 1 的答案。问题 1 还要求"投放效益随时间的变化规律与假日效应"，
+而且"设计质量与创意"等维度到具体指标的映射**本身就是一个需要论证的建模决策**，
+方法不会替你决定。本轮交付的是一个**可追溯的评价基线**，不是一份结论。
+
+## 7. 边界（不得夸大）
 
 - 本轮只体检了**确定性链路**，且 ProblemMap 是人工手写的；**未**评估 LLM 的读题/拆题质量。
 - 没有产出任何一道题的答案；没有生成图表、验证报告或论文。

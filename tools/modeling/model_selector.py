@@ -9,6 +9,11 @@ KEYWORDS = {
     "optimization": ("优化", "最优", "最大化", "最小化", "资源配置", "调度"),
     "classification": ("分类", "类别", "判别", "识别"),
     "clustering": ("聚类", "分群"),
+    # Comprehensive-evaluation tasks were previously unrecognisable: there was no
+    # "evaluation" group at all, so 2026E 问题 1 (从四个方面评价合理性) could only
+    # be misclassified as a time-series task, and no evaluation family was
+    # reachable from the catalog.
+    "evaluation": ("评价", "综合", "合理性", "优劣", "权重", "排序"),
     "time_series": ("时间序列", "趋势", "预测", "未来", "随时间"),
     "network": ("路径", "路网", "网络", "节点", "边", "最短"),
     "simulation": ("仿真", "模拟", "传播", "扩散", "动力学"),

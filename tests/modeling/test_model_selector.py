@@ -34,3 +34,20 @@ def test_selector_treats_dotted_extension_as_tabular_data():
            {c["model_id"] for c in plain_candidates["candidates"]}
     assert "logistic_classification" in {c["model_id"] for c in dotted_candidates["candidates"]}
     assert dotted_candidates["selected"]["model_id"] == "logistic_classification"
+
+
+def test_evaluation_tasks_reach_the_evaluation_family():
+    """KEYWORDS had no "评价" group, so 2026E 问题 1 (从四个方面评价合理性) could
+    only be misclassified as a time-series task and no evaluation family was
+    reachable from the catalog at all."""
+    problem_map = {"tasks": [{
+        "task_id": "E1",
+        "objective": "从广告的设计质量与创意、出价策略与预算等方面评价该公司SEM广告投放策略的合理性",
+        "inputs": [], "outputs": [],
+    }]}
+    data_profile = {"assets": [{"format": ".xlsx", "status": "READABLE"}]}
+
+    task = select_models(problem_map, data_profile)["tasks"][0]
+
+    assert task["task_type"] == "evaluation"
+    assert "entropy_topsis" in {c["model_id"] for c in task["candidates"]}

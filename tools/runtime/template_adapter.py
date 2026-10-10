@@ -96,6 +96,7 @@ MODEL_TEMPLATE: dict[str, str | None] = {
     "logistic_classification": "classification_cv.py",
     "tree_ensemble_classification": "classification_cv.py",
     "time_series_baseline": "time_series_cv.py",
+    "entropy_topsis": "entropy_topsis.py",
     "optimization": "optimization.py",
     "monte_carlo": "monte_carlo.py",
     "sensitivity": "sensitivity.py",
@@ -111,6 +112,10 @@ TEMPLATE_CAPABILITIES: dict[str, str] = {
     "model_compare.py": "native",
     "classification_cv.py": "native",
     "time_series_cv.py": "native",
+    # Evaluation bindings have no dependent variable: they compare entities across
+    # declared indicators. Requiring `target` for them would be wrong, so they take
+    # their own branch below.
+    "entropy_topsis.py": "evaluation",
     # Data-driven, but driven through a CLI argument contract (--input,
     # --entity-col, ...) instead of module attributes.
     "trajectory_reconstruction.py": "argv",
@@ -157,9 +162,10 @@ def execute_tabular_template(repo_root: Path, project_dir: Path, run_dir: Path, 
     """Execute one of the existing E-type tabular templates.
 
     Runnable families: linear regression, model comparison, (tree-ensemble)
-    classification and the time-series rolling baseline. Every other catalog
-    family is refused with an explicit reason; see MODEL_TEMPLATE and
-    TEMPLATE_CAPABILITIES above.
+    classification, the time-series rolling baseline and the entropy-weight +
+    TOPSIS evaluation. Native families take a `target`/`features` binding;
+    evaluation families take `entity`/`indicators`. Every other catalog family is
+    refused with an explicit reason; see MODEL_TEMPLATE and TEMPLATE_CAPABILITIES.
     """
     filename = _resolve_template(model_id)
 
@@ -171,26 +177,54 @@ def execute_tabular_template(repo_root: Path, project_dir: Path, run_dir: Path, 
 
     data_path = _resolve_data_path(project_dir, binding)
     csv_path = _prepare_csv(data_path, run_dir, _resolve_sheet(binding))
-    target = binding.get("target")
-    if not target:
-        raise InputBlocked("target is required; refusing to infer the dependent variable")
-
-    features = binding.get("features", [])
-    if not isinstance(features, list):
-        raise InputBlocked("features must be an explicit list when provided")
     df = pd.read_csv(csv_path)
-    missing = [c for c in [target, *features] if c not in df.columns]
-    if missing:
-        raise InputBlocked(f"columns not found: {missing}")
-    if not features:
-        features = [c for c in df.columns if c != target]
-    if not features:
-        raise InputBlocked("no predictor columns remain after excluding target")
+    kind = TEMPLATE_CAPABILITIES.get(filename, "native")
+
+    if kind == "evaluation":
+        entity = binding.get("entity")
+        if not entity:
+            raise InputBlocked(
+                "entity is required for an evaluation binding; refusing to guess which units are evaluated"
+            )
+        indicators = binding.get("indicators")
+        if not isinstance(indicators, list) or not indicators:
+            raise InputBlocked(
+                "indicators must be a non-empty list of {name, direction[, ratio]} specs"
+            )
+        referenced = {str(entity)}
+        for spec in indicators:
+            if not isinstance(spec, dict) or not spec.get("name"):
+                raise InputBlocked("each indicator must be an object with a name")
+            referenced.update(spec.get("ratio") or [spec["name"]])
+        missing = [c for c in sorted(referenced) if c not in df.columns]
+        if missing:
+            raise InputBlocked(f"columns not found: {missing}")
+        target, features = None, []
+    else:
+        target = binding.get("target")
+        if not target:
+            raise InputBlocked("target is required; refusing to infer the dependent variable")
+        features = binding.get("features", [])
+        if not isinstance(features, list):
+            raise InputBlocked("features must be an explicit list when provided")
+        missing = [c for c in [target, *features] if c not in df.columns]
+        if missing:
+            raise InputBlocked(f"columns not found: {missing}")
+        if not features:
+            features = [c for c in df.columns if c != target]
+        if not features:
+            raise InputBlocked("no predictor columns remain after excluding target")
 
     module = _load_module(repo_root / "05_python" / "templates" / filename)
     module.DATA_PATH = csv_path
-    module.TARGET = target
-    module.FEATURES = features
+    if kind == "evaluation":
+        module.ENTITY_COL = str(entity)
+        module.INDICATORS = indicators
+        if "aggregate" in binding and hasattr(module, "AGGREGATE"):
+            module.AGGREGATE = str(binding["aggregate"])
+    else:
+        module.TARGET = target
+        module.FEATURES = features
     for attr, key, cast in (
         ("SEED", "seed", int),
         ("TEST_SIZE", "test_size", float),
@@ -222,7 +256,7 @@ def execute_tabular_template(repo_root: Path, project_dir: Path, run_dir: Path, 
             if path.is_file():
                 artifacts.append({"kind": path.suffix.lstrip(".") or "file", "path": str(path), "description": "template output"})
     metrics: dict[str, Any] = {}
-    for candidate in [artifacts_dir / "model_comparison.csv", artifacts_dir / "classification_cv.csv", artifacts_dir / "run_manifest.json", artifacts_dir / "model_comparison_manifest.json", artifacts_dir / "classification_cv_manifest.json"]:
+    for candidate in [artifacts_dir / "model_comparison.csv", artifacts_dir / "classification_cv.csv", artifacts_dir / "run_manifest.json", artifacts_dir / "model_comparison_manifest.json", artifacts_dir / "classification_cv_manifest.json", artifacts_dir / "time_series_manifest.json", artifacts_dir / "entropy_topsis_manifest.json"]:
         if candidate.exists() and candidate.suffix == ".json":
             try:
                 payload = json.loads(candidate.read_text(encoding="utf-8"))
@@ -230,7 +264,11 @@ def execute_tabular_template(repo_root: Path, project_dir: Path, run_dir: Path, 
                 notes = payload.get("notes")
                 if isinstance(notes, str):
                     try:
-                        metrics.update(json.loads(notes).get("metrics", {}))
+                        parsed = json.loads(notes)
+                        metrics.update(parsed.get("metrics", {}))
+                        for key in ("top_entity", "top_closeness", "n_folds", "mean_MAE", "mean_RMSE"):
+                            if key in parsed:
+                                metrics[key] = parsed[key]
                     except Exception:
                         pass
             except Exception:

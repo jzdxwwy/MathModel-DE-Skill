@@ -146,3 +146,61 @@ def test_clustering_reports_that_no_data_driven_implementation_exists(tmp_path):
             "clustering",
             {"data_path": str(FIXTURE), "target": "target"},
         )
+
+
+def test_evaluation_binding_ranks_entities_with_entropy_topsis(tmp_path):
+    """Evaluation bindings have no dependent variable, so they must not be forced
+    through the target/features contract."""
+    source = tmp_path / "units.csv"
+    lines = ["单元,投入,产出,曝光"]
+    for index, (cost, gain, views) in enumerate([(3, 30, 1000), (1, 10, 100), (2, 25, 300)], 1):
+        lines.append(f"U{index},{cost},{gain},{views}")
+    source.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    result = execute_tabular_template(
+        ROOT,
+        tmp_path,
+        tmp_path / "run",
+        "entropy_topsis",
+        {
+            "data_path": str(source),
+            "entity": "单元",
+            "indicators": [
+                {"name": "投入", "direction": "-"},
+                {"name": "产出", "direction": "+"},
+                {"name": "点击率", "direction": "+", "ratio": ["产出", "曝光"]},
+            ],
+        },
+    )
+
+    assert result.outputs[0]["value"] == "completed"
+    manifest = json.loads(
+        (tmp_path / "run" / "results" / "entropy_topsis_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["parameters"]["entity_col"] == "单元"
+    assert manifest["parameters"]["entities"] == 3
+    assert sum(manifest["parameters"]["weights"].values()) == pytest.approx(1.0)
+    assert (tmp_path / "run" / "results" / "entropy_topsis_scores.csv").exists()
+
+
+def test_evaluation_binding_requires_an_entity_and_known_columns(tmp_path):
+    source = tmp_path / "units.csv"
+    source.write_text("单元,投入\nU1,3\nU2,1\n", encoding="utf-8")
+
+    with pytest.raises(InputBlocked, match="entity is required"):
+        execute_tabular_template(
+            ROOT,
+            tmp_path,
+            tmp_path / "run-a",
+            "entropy_topsis",
+            {"data_path": str(source), "indicators": [{"name": "投入"}]},
+        )
+
+    with pytest.raises(InputBlocked, match="columns not found"):
+        execute_tabular_template(
+            ROOT,
+            tmp_path,
+            tmp_path / "run-b",
+            "entropy_topsis",
+            {"data_path": str(source), "entity": "单元", "indicators": [{"name": "不存在"}]},
+        )

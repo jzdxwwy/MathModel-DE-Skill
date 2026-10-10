@@ -136,10 +136,68 @@ E 题最关键的数据（每日注册数在 Sheet2、关键词统计在 Sheet3�
 在没有 LLM 凭据的环境里，确定性链路**无法自主完成读题与拆题**，
 也就无法从"附件"一路走到"结果"，除非人工补上这两步。
 
-## 5. 边界（不得夸大）
+## 5. 后续修复进展（第 3 轮）
+
+上表 7 项短板中，已关闭 3 项：
+
+| 短板 | 状态 | 修复方式 |
+| --- | --- | --- |
+| 4.1 8 个模型族无 adapter | **部分关闭，且重新定性** | 见下节：其中 3 个是**玩具模板**，接线会伪造结果 |
+| 4.2 Excel 只能读第一张表 | ✅ 已修复 | 绑定新增 `sheet`（表名或 0 基索引），并按 DataProfile 的约定 strip 表头 |
+| 4.5 时序模板无特征工程 / `TIME_COL` 注不进去 | ✅ 已修复 | adapter 注入 `TIME_COL`/`TEST_HORIZON`/`MIN_TRAIN`；无特征列时确定性构造 `lag1_target` 并写入 manifest |
+| 4.6 表头尾随空格 | ✅ 已修复 | `_prepare_csv` 统一 strip 列名 |
+
+### 5.1 4.1 需要重新定性：这不是"缺 adapter"，而是"接上就会伪造结果"
+
+逐一核对 `05_python/templates/` 的输入契约后发现，12 个模型族的真实情况是：
+
+| 类别 | 模型族 | 说明 |
+| --- | --- | --- |
+| 可执行 | `linear_regression`、`tree_ensemble_regression`、`logistic_classification`、`tree_ensemble_classification`、`time_series_baseline` | 数据驱动，走模块属性注入 |
+| 数据驱动但契约不同 | `shortest_path`、`mechanism_simulation` | 前者 `TARGET` 是**终点节点**而非目标列；后者走 **CLI 参数**而非模块属性 |
+| **玩具示例，接上即伪造** | `optimization`、`monte_carlo`、`sensitivity` | 目标函数/事件**硬编码**，完全**不读外部数据** |
+| 根本没有实现 | `clustering`、`pca` | 目录把它们指向 `model_compare.py`，而那是回归对比，不是聚类/PCA |
+
+三个玩具模板的证据（源码注释即为作者所写）：
+
+- `optimization.py`：`objective()` = `(x0-3)² + 2(x1-5)²`，注释 "Toy objective: replace with the contest objective."，
+  manifest 里 `input_hash: "NO_EXTERNAL_INPUT"`；
+- `monte_carlo.py`：`simulation()` = `(normal > 1.645)`，注释 "Replace this toy event..."；
+- `sensitivity.py`：`objective()` = `2x1 + 0.5x2² - x3`，注释 "Toy objective; replace this with the real contest model"。
+
+若把它们当作 2026E 的 solver 接上，问题 3 会得到一个玩具二次函数的 SLSQP 解、
+问题 4 会得到 P(N(0,1) > 1.645) ≈ 5%，**并且带着真实 input hash、RUN_COMPLETE 状态和
+可追溯的证据链**——这正是本项目要防的"看起来完整但结果是编的"。
+
+因此第 3 轮没有给它们补 adapter，而是加了**显式拒绝**：`template_adapter` 现在按模板能力分类，
+对玩具模板、argv 契约模板、network 契约模板、无实现族分别给出不同的、可执行的拒绝理由。
+
+### 5.2 阶段 04 现在能在真实附件上算出东西
+
+`execute_tabular_template` 在真实 `附件1.xlsx` 上实测：
+
+```
+time_series_baseline  sheet="Sheet2"  time_col="日期"  target="新注册数"
+  -> EXECUTED
+     input_hash       : 3bba8e4e117ef55a8dcf52ec...
+     features         : ['lag1_target']    (derived: target(t-1))
+     rolling folds    : 354
+     mean MAE / RMSE  : 68.9759 / 68.9759
+  -> canonical ResultBundle: status=VALIDATED, schema valid=True
+```
+
+这是本项目**第一次用真实竞赛数据跑出可追溯的规范结果**（注意：这只是问题 4 的一个
+时序基线，**不是**对 2026E 的完整解答）。
+
+仍待解决：`clustering`/`pca`/`mechanism_simulation`/`shortest_path` 无可用实现或契约不符；
+阶段 00/01 仍无法脱离 LLM。
+
+## 6. 边界（不得夸大）
 
 - 本轮只体检了**确定性链路**，且 ProblemMap 是人工手写的；**未**评估 LLM 的读题/拆题质量。
 - 没有产出任何一道题的答案；没有生成图表、验证报告或论文。
 - 阶段 05–08 **完全未执行**，因此关于可视化、验证、写作、交付的能力**没有任何证据**，
   既不能说它们可用，也不能说它们不可用。
+- 第 5.2 节的结果是问题 4 的**时序基线**，只覆盖 `新注册数` 一列；
+  2026E 的其余子问题（策略诊断、关键词五分类、逐日投放优化）**仍未求解**。
 - 参考解（另一套 Skill 的赛期产出）在本次体检中**未被使用**，仅存在于工作区作为对照。

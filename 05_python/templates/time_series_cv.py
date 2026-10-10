@@ -26,8 +26,25 @@ def sha256_file(path: Path) -> str:
 
 
 def main():
-    df = pd.read_csv(DATA_PATH).sort_values(TIME_COL).reset_index(drop=True)
-    features = FEATURES or [c for c in df.columns if c not in (TIME_COL, TARGET)]
+    df = pd.read_csv(DATA_PATH)
+    if TIME_COL not in df.columns:
+        raise ValueError(f"time column not found: {TIME_COL!r}; available columns: {list(df.columns)}")
+    if TARGET not in df.columns:
+        raise ValueError(f"target column not found: {TARGET!r}; available columns: {list(df.columns)}")
+    df = df.sort_values(TIME_COL).reset_index(drop=True)
+
+    features = [c for c in (FEATURES or df.columns) if c not in (TIME_COL, TARGET)]
+    derived_features: list[str] = []
+    if not features:
+        # A univariate series has no predictor columns at all. Build the standard
+        # deterministic one-step lag of the target so the baseline is defined and
+        # reproducible, instead of fitting on a constant and reporting noise.
+        df = df.copy()
+        df["lag1_target"] = pd.to_numeric(df[TARGET], errors="coerce").shift(1)
+        df = df.dropna(subset=["lag1_target"]).reset_index(drop=True)
+        features = ["lag1_target"]
+        derived_features = ["lag1_target = target(t - 1)"]
+
     X = df[features].apply(pd.to_numeric, errors="coerce").ffill().fillna(0)
     y = pd.to_numeric(df[TARGET], errors="coerce")
     rows = []
@@ -52,11 +69,13 @@ def main():
         "python": sys.version,
         "seed": SEED,
         "model": "Ridge-rolling-origin",
-        "parameters": {"alpha": 1.0, "test_horizon": TEST_HORIZON, "min_train": MIN_TRAIN},
+        "parameters": {"alpha": 1.0, "test_horizon": TEST_HORIZON, "min_train": MIN_TRAIN,
+                       "time_col": TIME_COL, "features": features,
+                       "derived_features": derived_features},
         "command": "python 05_python/templates/time_series_cv.py",
         "outputs": [str(result_path), str(out / "time_series_manifest.json")],
         "status": "RUN_COMPLETE",
-        "notes": json.dumps({"n_folds": len(result), "mean_MAE": float(result.MAE.mean()), "mean_RMSE": float(result.RMSE.mean())}, ensure_ascii=False),
+        "notes": json.dumps({"n_folds": len(result), "mean_MAE": float(result.MAE.mean()), "mean_RMSE": float(result.RMSE.mean()), "features": features, "derived_features": derived_features}, ensure_ascii=False),
     }
     (out / "time_series_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(manifest, ensure_ascii=False, indent=2))

@@ -8,7 +8,7 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+from sklearn.metrics import accuracy_score, f1_score, make_scorer, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, cross_validate
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -43,7 +43,20 @@ def main():
     ])
     pipe = Pipeline([("pre", pre), ("model", LogisticRegression(max_iter=2000, random_state=SEED))])
     cv = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
-    scoring = {"accuracy": "accuracy", "f1_macro": "f1_macro", "roc_auc": "roc_auc"}
+    n_classes = int(pd.Series(y).nunique())
+    if n_classes == 2:
+        roc_auc = "roc_auc"
+    else:
+        # sklearn >= 1.7 requires an explicit multi_class strategy for multiclass
+        # roc_auc; the plain "roc_auc" string raises
+        # ValueError: multi_class must be in ('ovo', 'ovr').
+        roc_auc = make_scorer(
+            roc_auc_score,
+            response_method="predict_proba",
+            multi_class="ovr",
+            average="macro",
+        )
+    scoring = {"accuracy": "accuracy", "f1_macro": "f1_macro", "roc_auc": roc_auc}
     scores = cross_validate(pipe, X, y, cv=cv, scoring=scoring, error_score="raise")
     result = pd.DataFrame({
         "fold": np.arange(1, N_SPLITS + 1),

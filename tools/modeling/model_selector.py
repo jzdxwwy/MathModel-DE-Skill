@@ -4,6 +4,7 @@ from typing import Any
 from .model_catalog import CATALOG
 
 WEIGHTS = {"fit":25,"data":15,"constraints":15,"interpretability":15,"verifiability":15,"robustness":10,"cost":5}
+TABULAR_FORMATS = {"csv", "tsv", "xlsx", "xls", "json"}
 KEYWORDS = {
     "optimization": ("优化", "最优", "最大化", "最小化", "资源配置", "调度"),
     "classification": ("分类", "类别", "判别", "识别"),
@@ -30,7 +31,16 @@ def classify_task(problem_map: dict[str, Any], data_profile: dict[str, Any]) -> 
 
 
 def _has_tabular_data(dp: dict[str, Any]) -> bool:
-    return any(a.get("format", "").lower() in {"csv","tsv","xlsx","xls","json"} and a.get("status") != "unreadable" for a in dp.get("assets", []))
+    # build_data_profile() records the extension WITH a leading dot (".xlsx"),
+    # while data_binding.py already normalises it away with lstrip("."). Comparing
+    # the raw value here made every real workbook look like "no data", which
+    # silently pushed the whole selector onto its mechanism/simulation fallback
+    # and made every data-driven model family unreachable.
+    return any(
+        str(a.get("format", "")).lower().lstrip(".") in TABULAR_FORMATS
+        and a.get("status") != "unreadable"
+        for a in dp.get("assets", [])
+    )
 
 
 def _candidates(task_type: str, has_data: bool) -> list[dict[str, Any]]:

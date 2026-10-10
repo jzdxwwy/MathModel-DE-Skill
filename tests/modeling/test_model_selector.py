@@ -16,3 +16,21 @@ def test_selector_rejects_tabular_models_without_tabular_asset():
     result=select_models(problem_map,{"assets":[]})
     ids={c["model_id"] for c in result["tasks"][0]["candidates"]}
     assert "logistic_classification" not in ids
+
+
+def test_selector_treats_dotted_extension_as_tabular_data():
+    """Regression: build_data_profile() stores the extension as ".xlsx", but the
+    selector compared it against "xlsx". Every real profiled workbook was therefore
+    reported as "no data", which pushed the selector onto its mechanism/simulation
+    fallback and made all data-driven model families unreachable."""
+    problem_map = {"tasks": [{"task_id": "Q1", "objective": "对关键词进行分类", "inputs": [], "outputs": []}]}
+    dotted = {"assets": [{"format": ".xlsx", "status": "READABLE"}]}
+    plain = {"assets": [{"format": "xlsx", "status": "READABLE"}]}
+
+    dotted_candidates = select_models(problem_map, dotted)["tasks"][0]
+    plain_candidates = select_models(problem_map, plain)["tasks"][0]
+
+    assert {c["model_id"] for c in dotted_candidates["candidates"]} == \
+           {c["model_id"] for c in plain_candidates["candidates"]}
+    assert "logistic_classification" in {c["model_id"] for c in dotted_candidates["candidates"]}
+    assert dotted_candidates["selected"]["model_id"] == "logistic_classification"

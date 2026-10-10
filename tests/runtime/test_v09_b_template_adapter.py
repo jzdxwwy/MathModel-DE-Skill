@@ -33,3 +33,33 @@ def test_missing_target_is_blocked(tmp_path):
             "linear_regression",
             {"data_path": str(FIXTURE), "features": ["x1", "x2"]},
         )
+
+
+def test_multiclass_classification_runs_through_adapter(tmp_path):
+    """sklearn >= 1.7 requires an explicit multi_class strategy for multiclass
+    roc_auc; the plain "roc_auc" scorer raised
+    ValueError: multi_class must be in ('ovo', 'ovr'). Any target with more than
+    two classes — including the five keyword classes a D/E problem asks for —
+    crashed the classification template."""
+    import random
+
+    rng = random.Random(7)
+    source = tmp_path / "keywords.csv"
+    lines = ["spend,clicks,bucket"]
+    for _ in range(80):
+        spend = round(rng.uniform(0.0, 100.0), 2)
+        clicks = rng.randint(0, 40)
+        bucket = min(int(spend // 20), 4)
+        lines.append(f"{spend},{clicks},{bucket}")
+    source.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    result = execute_tabular_template(
+        ROOT,
+        tmp_path,
+        tmp_path / "run",
+        "logistic_classification",
+        {"data_path": str(source), "target": "bucket", "features": ["spend", "clicks"], "seed": 7},
+    )
+
+    assert result.outputs[0]["value"] == "completed"
+    assert any("classification_cv" in x["path"] for x in result.artifacts)

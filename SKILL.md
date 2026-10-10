@@ -770,9 +770,9 @@ V4.1 新增 `tools/benchmark/benchmark_runner.py`、Benchmark schemas、benchmar
 前面各版本小节中"本次会话没有实际运行 pytest"是**当时会话**的记录（历史保持原样）。现在已有真实执行证据：
 
 - 命令：`python -m pytest -q`（仓库根目录）
-- 结果：**147 passed, 0 failed, 0 errors**，耗时约 4 秒（141 → 145 → 147，随后续修复增长）
+- 结果：**151 passed, 0 failed, 0 errors**，耗时约 4 秒（141 → 145 → 147 → 151，随后续修复增长）
 - 修复前基线：3 failed, 138 passed
-- 解释器：CPython 3.14.6 (Windows x64)，仓库版本 `main` @ `c711fe2`
+- 解释器：CPython 3.14.6 (Windows x64)，仓库版本 `main` @ `f2af96e`
 - 裸 `pytest`（不带 `-m`）同样可收集全部用例
 
 本次实测同时修复了 3 个真实缺陷与 4 个工程/CI 缺口，明细见根目录 `TEST_STATUS.md`：
@@ -837,8 +837,58 @@ Excel 只能读第一张表；`KEYWORDS` 缺 `evaluation`（综合评价无法�
 `shortest_path` 无条件压过 `optimization`；时序模板无特征工程且 `TIME_COL` 注不进去；
 真实表头带尾随空格而 DataProfile 已 strip；阶段 00/01 无法脱离 LLM。
 
+> 其中 **Excel 单表、时序模板、表头尾随空格**三项已在第 55 节修复；
+> **"12 个模型族仅 4 个有 adapter"** 也已重新定性——见第 55.2 节。
+
 ### 54.4 当前可用边界
 
 真实链路的可用边界止于**阶段 02**：阶段 02 可用，阶段 03 部分可用，阶段 04 起不可用。
 阶段 05–08（可视化、验证、写作、最终交付）在真实数据上**完全未执行**，
 因此对这些阶段的能力目前既不能肯定也不能否定。
+
+
+## 55. V4.2 续：阶段 04 在真实附件上打通（2026-10-08）
+
+### 55.1 已修复
+
+7. **Excel 只能读第一张表**：`_prepare_csv` 硬编码 `sheet_name=0`，真实 CUMCM 附件的
+   Sheet2/Sheet3（注册数、关键词）在计算层完全不可达。绑定新增 `sheet`（表名或 0 基索引），
+   并统一 strip 表头（2026E Sheet2 真实表头是 `"新注册数 "`，带尾随空格）。
+8. **时序模板此前不可用**：adapter 原先不注入 `TIME_COL`（模板声明了它），已补齐并一并支持
+   `TEST_HORIZON` / `MIN_TRAIN`；`time_series_cv.py` 在 `FEATURES` 为空时会静默使用 DataFrame
+   全列（含时间列，被转成 NaN→0 后拟合常数，产出无意义结果），现在明确排除时间列/目标列，
+   并在无任何预测列时确定性构造 `lag1_target`，把 `derived_features` 写进 manifest；
+   时间列/目标列缺失时给出列出现有列名的可执行报错。
+
+### 55.2 关键发现：不是"缺 8 个 adapter"，而是其中 3 个接上就会伪造结果
+
+逐一核对模板输入契约后，12 个模型族的真实分布是：5 个数据驱动可执行；
+`shortest_path` 的 `TARGET` 是终点节点而非目标列、`mechanism_simulation` 走 CLI 参数契约；
+`clustering`/`pca` 在目录里被指向 `model_compare.py`（回归对比，不是聚类/PCA）；
+而 **`optimization` / `monte_carlo` / `sensitivity` 是玩具示例**——目标函数或事件硬编码
+（`(x0-3)²+2(x1-5)²`、`(normal>1.645)`、`2x1+0.5x2²-x3`），**完全不读外部数据**，
+`optimization.py` 的 manifest 里直接写着 `input_hash: NO_EXTERNAL_INPUT`。
+
+把它们接到真实绑定上，会产出玩具解 + 真实 input hash + `RUN_COMPLETE` + 可追溯证据链——
+正是本项目要防的"看起来完整但结果是编的"。
+
+因此**没有**给它们补 adapter，而是加了按模板能力分类的显式拒绝，对玩具模板、argv 契约、
+network 契约、无实现族分别给出不同且可执行的拒绝理由。
+
+### 55.3 实测
+
+真实 `benchmarks/2026E/inputs/附件1.xlsx`：
+
+```
+time_series_baseline  sheet="Sheet2"  time_col="日期"  target="新注册数"
+  -> EXECUTED, input_hash=3bba8e4e..., features=[lag1_target], 354 folds
+  -> canonical ResultBundle: status=VALIDATED, schema valid=True
+```
+
+这是本项目**第一次用真实竞赛数据产出可追溯的规范结果**。
+
+### 55.4 边界
+
+该结果只是 2026E **问题 4 的时序基线**，仅覆盖 `新注册数` 一列；
+策略诊断、关键词五分类、逐日投放优化三个子问题**仍未求解**。
+阶段 05–08 在真实数据上**仍完全未执行**。

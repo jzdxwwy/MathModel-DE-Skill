@@ -1,0 +1,45 @@
+{
+  "artifact_type": "BenchmarkInputManifest",
+  "schema_version": "1.0",
+  "benchmark_id": "CUMCM-2024E",
+  "attachments": [
+    {
+      "attachment_id": "problem_statement",
+      "required": true,
+      "status": "PRESENT",
+      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2024E\\inputs\\E题.pdf",
+      "sha256": "d5c9442c261a7eacc7da3b5b23047b5d8fd9b7c86bd082d782288ee1bb64c4bb",
+      "media_type": "application/pdf"
+    },
+    {
+      "attachment_id": "attachment_1",
+      "required": true,
+      "status": "PRESENT",
+      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2024E\\inputs\\附件1.xlsx",
+      "sha256": "2a33f6290d5f6209b259a68c5b9db7eb5c163b33e6d1082b622aeb5f215309d0",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    },
+    {
+      "attachment_id": "attachment_2",
+      "required": true,
+      "status": "MISSING",
+      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2024E\\inputs\\附件2.csv"
+    },
+    {
+      "attachment_id": "attachment_3",
+      "required": true,
+      "status": "PRESENT",
+      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2024E\\inputs\\附件3.pdf",
+      "sha256": "ccd7b7400afa9ac9b974de124198d57cc2fc5273931d72da8ad49f1d9fe02cf7",
+      "media_type": "application/pdf"
+    },
+    {
+      "attachment_id": "paper_format",
+      "required": true,
+      "status": "PRESENT",
+      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2024E\\inputs\\format2024.doc",
+      "sha256": "ec699bbe89e25cad16ca907b305c6cc76112ec04083cfe56ca65fd7a26fbaafe",
+      "media_type": "application/msword"
+    }
+  ]
+}

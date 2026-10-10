@@ -1,0 +1,15 @@
+{
+  "artifact_type": "BenchmarkInputManifest",
+  "schema_version": "1.0",
+  "benchmark_id": "CUMCM-2024D",
+  "attachments": [
+    {
+      "attachment_id": "problem_statement",
+      "required": true,
+      "status": "PRESENT",
+      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2024D\\inputs\\D题.pdf",
+      "sha256": "8f30bdb312715167cd4ceaf87604dfd12e688d802e32e310322057aeb9d66cb0",
+      "media_type": "application/pdf"
+    }
+  ]
+}

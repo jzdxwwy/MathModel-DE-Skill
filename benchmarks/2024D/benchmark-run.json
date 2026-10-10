@@ -1,0 +1,20 @@
+{
+  "artifact_type": "BenchmarkRun",
+  "schema_version": "1.0",
+  "benchmark_id": "CUMCM-2024D",
+  "status": "READY",
+  "input_manifest_ref": "benchmark-input-manifest.json",
+  "run_id": null,
+  "stages": [
+    {
+      "stage_id": "B01_INPUT_READINESS",
+      "status": "READY",
+      "message": "Required benchmark attachments are present.",
+      "input_refs": [
+        "problem_statement"
+      ],
+      "output_refs": []
+    }
+  ],
+  "gate_decision": "NOT_RUN"
+}

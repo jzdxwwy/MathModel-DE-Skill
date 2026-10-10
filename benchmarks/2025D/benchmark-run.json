@@ -1,0 +1,30 @@
+{
+  "artifact_type": "BenchmarkRun",
+  "schema_version": "1.0",
+  "benchmark_id": "CUMCM-2025D",
+  "status": "READY",
+  "input_manifest_ref": "benchmark-input-manifest.json",
+  "run_id": null,
+  "stages": [
+    {
+      "stage_id": "B01_INPUT_READINESS",
+      "status": "READY",
+      "message": "Required benchmark attachments are present.",
+      "input_refs": [
+        "problem_statement",
+        "attachment_1",
+        "attachment_2",
+        "attachment_3_result1-1",
+        "attachment_3_result1-2",
+        "attachment_3_result2-1",
+        "attachment_3_result2-2",
+        "attachment_3_result3-1",
+        "attachment_3_result3-2",
+        "attachment_3_result4-1",
+        "attachment_3_result4-2"
+      ],
+      "output_refs": []
+    }
+  ],
+  "gate_decision": "NOT_RUN"
+}

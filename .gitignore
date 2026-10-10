@@ -37,6 +37,14 @@ tests/_smoke_workspace/
 artifacts/ci/
 
 # ---------------------------------------------------------------------------
+# Oversized benchmark inputs that must be obtained separately
+# ---------------------------------------------------------------------------
+# 2024E's 附件2.csv is 467.9 MB / 8.84M rows, well past what belongs in git.
+# Its SHA256 is recorded in benchmarks/2024E/README.md so a local copy can be
+# verified; without it that benchmark honestly reports BLOCKED.
+benchmarks/2024E/inputs/附件2.csv
+
+# ---------------------------------------------------------------------------
 # Local secrets
 # ---------------------------------------------------------------------------
 .env

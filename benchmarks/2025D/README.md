@@ -1,5 +1,60 @@
 # 2025D Benchmark：矿井突水水流漫延模型与逃生方案
 
+> Benchmark ID `CUMCM-2025D`　类型 D（机理漫延 + 图与路径）
+> 状态 **B01_INPUT_READINESS = READY（尚未求解）**
+
+## 0. 基准卡（实测事实）
+
+**输入清单**（11 个必需输入，全部入库并固定 SHA256）
+
+| attachment_id | 文件 | 大小 | SHA256 |
+| --- | --- | --- | --- |
+| `problem_statement` | `inputs/D题.pdf` | 359,362 B | `280d690a1f78f5ff0889760592bf30de903ac5144ed8491d59ae744e560c4aa8` |
+| `attachment_1` | `inputs/附件1.xlsx` | 56,691 B | `769b2cec2981ee655fa37ea13708442830bb42e19d74e7e40fa7809bbdc8b3eb` |
+| `attachment_2` | `inputs/附件2.xlsx` | 57,596 B | `77ae841ebc62df2773de46a083b05aa95bc8111ca5c7fc62786c77a0501b068a` |
+| `attachment_3_result1-1` | `inputs/附件3/result1-1.xlsx` | 35,128 B | `cfa9bd89ca6c3c5976470a658af577e2c0ac0da98b488fb8e0fe2fae9f44d6bc` |
+| `attachment_3_result1-2` | `inputs/附件3/result1-2.xlsx` | 35,128 B | `cfa9bd89ca6c3c5976470a658af577e2c0ac0da98b488fb8e0fe2fae9f44d6bc` |
+| `attachment_3_result2-1` | `inputs/附件3/result2-1.xlsx` | 12,174 B | `ede188f310c06379cc4a325648265a7b20b83e6e00c1ac7c3cd9358deb90f97d` |
+| `attachment_3_result2-2` | `inputs/附件3/result2-2.xlsx` | 12,206 B | `fe9bf025f32f14f1a50d547fac16480ac049dde84302105000d225bde21b3fc6` |
+| `attachment_3_result3-1` | `inputs/附件3/result3-1.xlsx` | 35,128 B | `cfa9bd89ca6c3c5976470a658af577e2c0ac0da98b488fb8e0fe2fae9f44d6bc` |
+| `attachment_3_result3-2` | `inputs/附件3/result3-2.xlsx` | 35,128 B | `cfa9bd89ca6c3c5976470a658af577e2c0ac0da98b488fb8e0fe2fae9f44d6bc` |
+| `attachment_3_result4-1` | `inputs/附件3/result4-1.xlsx` | 12,172 B | `0a7f570ce4ced26d0199406389fe47ac58a0bbf980775bae3d097c4f391eb166` |
+| `attachment_3_result4-2` | `inputs/附件3/result4-2.xlsx` | 12,155 B | `144c0ceed4b93bce8efbbc05823204108cf07735b23c57445b5124c89c3fac1f` |
+
+**数据结构（由本项目 ingestion 实际读出）**：附件 1 与附件 2 结构相同、坐标不同（两个不同矿井场景）。
+
+| asset | sheet | 行 | 列 | 列名 |
+| --- | --- | --- | --- | --- |
+| 端点 | `端点` | 664 | 4 | 端点编号, 端点坐标（x/y/z 在第二行） |
+| 巷道 | `巷道` | 977 | 3 | 巷道编号, 巷道端点1, 巷道端点2 |
+
+节点表与边表分离，是一条标准的"点—边"网络，**与 `graph_shortest_path.py` 的输入形态天然吻合**。
+
+**附件 3 的模板只有两种形态**：`result1-1/1-2/3-1/3-2` 四个文件的 SHA256 **完全相同**
+（端点/巷道时刻表，编号已预填、数值列留空）；`result2-*` / `result4-*` 是"工人逃生路径"表
+（3 名工人各一个 sheet）。
+
+**复现就绪证据**
+
+```bash
+python benchmarks/2025D/run_readiness.py
+# CUMCM-2025D: READY (gate=NOT_RUN)
+```
+
+**与现有能力的匹配情况（跨年份泛化要点）**
+
+| 子问题 | 需要的能力 | 目录中的候选 | 能否套用 |
+| --- | --- | --- | --- |
+| 问题 1/3 水流漫延 | 随时间演化的机理/网络传播模型 | `mechanism_simulation` → `trajectory_reconstruction.py` | ❌ 那是**事件流轨迹重建**且走 CLI 参数契约，不是水流漫延模型 |
+| 问题 2/4 逃生路径 | 边权随水面高度与时间变化的**时变最短路** | `shortest_path` → `graph_shortest_path.py` | ⚠️ 是真实的 Dijkstra 实现、数据形态也吻合，但**边权是静态的**且 `TARGET` 表示终点节点；本题边权随时间变化，**当前无法直接套用** |
+
+**结论：2025D 是"数据形态对得上、模型能力对不上"的典型**，比 2024D（连数据都没有）更接近可用，
+缺的是时变网络上的传播与路径模型。
+
+**边界**：`READY` 只描述输入齐全；本题没有任何求解结果，附件 3 的模板尚未被任何计算写入过。
+
+（以下为原有的建模方案与迁移说明，保持不变。）
+
 ## 1. 题目定位
 
 2025 年高教社杯全国大学生数学建模竞赛 D 题面向高职高专组，主题是矿井突水水流漫延与逃生方案。官方赛题发布于 2025 年 9 月 4 日；中国大学生在线随后发布了由东南大学王丽艳教授进行的赛题讲评。citeturn0search8turn0search0

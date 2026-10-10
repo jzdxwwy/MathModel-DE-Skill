@@ -8,15 +8,19 @@
 | 项目 | 结果 |
 | --- | --- |
 | 命令 | `python -m pytest -q`（仓库根目录） |
-| 结果 | **141 passed, 0 failed, 0 errors** |
+| 结果 | **147 passed, 0 failed, 0 errors** |
 | 耗时 | 约 4 秒 |
-| 基线（修复前） | 3 failed, 138 passed |
+| 基线（首轮修复前） | 3 failed, 138 passed |
 | 执行日期 | 2026-10-08 |
-| 仓库版本 | `main` @ `9a005f1` |
+| 仓库版本 | `main` @ `c711fe2` |
 | 解释器 | CPython 3.14.6 (Windows x64) |
-| GitHub Actions | run #52（commit `8eb68a6`）**success**，且 `set -o pipefail` 已生效 |
+| GitHub Actions | run #55（commit `a40a5a1`）**success**，`set -o pipefail` 已生效 |
 
-裸 `pytest`（不带 `-m`）同样可收集全部 141 个用例——这依赖本仓库新增的 `pytest.ini`。
+裸 `pytest`（不带 `-m`）同样可收集全部用例——这依赖本仓库新增的 `pytest.ini`。
+
+> 用例数随后续修复增长：141（首轮）→ 145（ingestion 真实附件修复）→ 147（模型选择/分类修复）。
+> 各轮修复内容见本文第 2–3 节、[`benchmarks/CAPABILITY_PROBE_2026DE.md`](benchmarks/CAPABILITY_PROBE_2026DE.md)
+> 与 [`benchmarks/STAGE_PROBE_2026E.md`](benchmarks/STAGE_PROBE_2026E.md)。
 
 ## 2. 修复前基线（3 个真实缺陷）
 
@@ -135,3 +139,7 @@ python -m pytest -q
   集合阶段就需要 numpy/pandas），但它们是脚本式冒烟脚本，通过 `__main__` 运行，**贡献 0 个用例**。
 - `benchmarks/2024D`、`2024E`、`2025D`、`2025E` 目前只有计划/说明文档，没有真实附件，
   Benchmark 尚未真正执行。
+- `benchmarks/2026E` 输入已就绪（READY），`benchmarks/2026D` 因附件 2 缺失为 BLOCKED；
+  但**两者都没有任何求解结果**。分阶段体检显示确定性链路目前只能走到阶段 02：
+  阶段 03 部分可用、阶段 04 起不可用（12 个模型族仅 4 个有 adapter、Excel 只能读第一张表），
+  阶段 05–08 完全未执行。详见 [`benchmarks/STAGE_PROBE_2026E.md`](benchmarks/STAGE_PROBE_2026E.md)。

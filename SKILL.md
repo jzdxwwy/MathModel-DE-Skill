@@ -770,10 +770,10 @@ V4.1 新增 `tools/benchmark/benchmark_runner.py`、Benchmark schemas、benchmar
 前面各版本小节中"本次会话没有实际运行 pytest"是**当时会话**的记录（历史保持原样）。现在已有真实执行证据：
 
 - 命令：`python -m pytest -q`（仓库根目录）
-- 结果：**141 passed, 0 failed, 0 errors**，耗时约 4 秒
+- 结果：**147 passed, 0 failed, 0 errors**，耗时约 4 秒（141 → 145 → 147，随后续修复增长）
 - 修复前基线：3 failed, 138 passed
-- 解释器：CPython 3.14.6 (Windows x64)，仓库版本 `main` @ `9a005f1`
-- 裸 `pytest`（不带 `-m`）同样可收集全部 141 个用例
+- 解释器：CPython 3.14.6 (Windows x64)，仓库版本 `main` @ `c711fe2`
+- 裸 `pytest`（不带 `-m`）同样可收集全部用例
 
 本次实测同时修复了 3 个真实缺陷与 4 个工程/CI 缺口，明细见根目录 `TEST_STATUS.md`：
 
@@ -792,5 +792,53 @@ V4.1 新增 `tools/benchmark/benchmark_runner.py`、Benchmark schemas、benchmar
 **CI 复核：** commit `8eb68a6`（GitHub Actions run #52）在 `set -o pipefail` 生效后仍为
 `success`，步骤级 integration / verification / full-regression 均为 `success`。
 
-**边界（不因 141 passed 而改变）：** F7–F15 环境链门禁在 fixture 中仍为 `NOT_RUN`；
-Benchmark 尚未使用真实附件执行；修复前的 CI 绿灯无法追溯真实含义，不作为曾经通过的证据。
+**边界（不因 147 passed 而改变）：** F7–F15 环境链门禁在 fixture 中仍为 `NOT_RUN`；
+真实 benchmark 尚未被求解；修复前的 CI 绿灯无法追溯真实含义，不作为曾经通过的证据。
+
+
+## 54. V4.2：真实基准接入与端到端能力体检（2026-10-08）
+
+本节记录**第一次用真实竞赛题目与附件**驱动本项目，并据此定位短板。
+
+### 54.1 真实基准
+
+- `benchmarks/2026E`（SEM 广告投放策略）：题目 + 附件 1 + 附件 2（3 张空白结果模板）全部入库，
+  `B01_INPUT_READINESS = READY`。
+- `benchmarks/2026D`（时频冲突检测与消解）：题目 + 附件 1 已入库，**附件 2 的 4 张结果模板缺失**，
+  因此 READY 检查 fail closed 为 `BLOCKED`。本地只有参考解填好的结果，不得当作模板。
+
+`READY` 只表示输入齐全，不表示题目已被求解；两个 benchmark 的 `gate_decision` 恒为 `NOT_RUN`。
+
+### 54.2 输入读取层（已修复）
+
+详见 [`benchmarks/CAPABILITY_PROBE_2026DE.md`](benchmarks/CAPABILITY_PROBE_2026DE.md)：
+
+1. `_xlsx_profile` 的返回契约与 `build_data_profile` 不一致，**任何 .xlsx 都退化为 0 行 0 列空 schema**
+   且不报风险——而 CUMCM 附件就是 .xlsx；
+2. 多 sheet 工作簿被压平，只保留第一张表（E 题的注册数与关键词数据因此丢失）；
+3. `DataProfile.gate_decision` 的 `FAIL` 此前永不可达（fail-open）；
+4. 题目 PDF 依赖 `pypdf` 未声明，"读题"第一步返回 0 字符。
+
+修复后 2026E 的 3 张表分别读为 2627×10 / 365×2 / 2227×9，2026D 为 150×5，
+并与另一套完全独立的 Skill 的赛期产出逐项吻合。
+
+### 54.3 确定性链路（部分修复 + 记录短板）
+
+详见 [`benchmarks/STAGE_PROBE_2026E.md`](benchmarks/STAGE_PROBE_2026E.md)。已修复：
+
+5. `model_selector._has_tabular_data()` 拿带点的 `".xlsx"` 比对不带点的集合，恒为 False，
+   使选择层对**任何真实附件**都判定"无数据"，只能选出机理仿真/蒙特卡洛
+   （`data_binding.py` 早已用 `.lstrip(".")` 归一化，属纯疏漏）；
+6. `classification_cv.py` 固定使用 `roc_auc`，sklearn ≥ 1.7 对多分类强制要求显式
+   `multi_class`，导致**任何类别数 > 2 的目标直接崩溃**（含五分类）。
+
+**仍然存在、需要决策的短板**（同文档第 4 节）：12 个模型族仅 4 个有 adapter；
+Excel 只能读第一张表；`KEYWORDS` 缺 `evaluation`（综合评价无法识别）；
+`shortest_path` 无条件压过 `optimization`；时序模板无特征工程且 `TIME_COL` 注不进去；
+真实表头带尾随空格而 DataProfile 已 strip；阶段 00/01 无法脱离 LLM。
+
+### 54.4 当前可用边界
+
+真实链路的可用边界止于**阶段 02**：阶段 02 可用，阶段 03 部分可用，阶段 04 起不可用。
+阶段 05–08（可视化、验证、写作、最终交付）在真实数据上**完全未执行**，
+因此对这些阶段的能力目前既不能肯定也不能否定。

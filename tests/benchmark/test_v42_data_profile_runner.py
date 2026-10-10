@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 from tools.benchmark.data_profile_runner import profile_benchmark_inputs
 
@@ -22,6 +23,11 @@ def test_v42_csv_flows_through_generic_ingestion(tmp_path: Path):
 
     assert result["status"] == "READY"
     assert result["attachment_count"] == 1
+    # The exposed gate must be the gate of the persisted profile, not a guess.
+    persisted = json.loads(
+        (tmp_path / "run" / "data" / "data_profile.json").read_text(encoding="utf-8")
+    )
+    assert result["data_profile_gate"] == persisted["gate_decision"]
 
     profile = (tmp_path / "run" / "data" / "data_profile.json").read_text(encoding="utf-8")
     assert '"artifact_type": "DataProfile"' in profile

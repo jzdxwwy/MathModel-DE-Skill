@@ -34,6 +34,10 @@ def profile_benchmark_inputs(
         "schema_version": "1.0",
         "benchmark_id": benchmark_id,
         "status": "READY" if not result.warnings else "READY_WITH_WARNINGS",
+        # Exposed so callers can fail closed on an empty profile. `status` below
+        # still only reflects ingestion warnings; aligning it with this gate is a
+        # separate contract decision (see benchmarks/CAPABILITY_PROBE_2026DE.md).
+        "data_profile_gate": profile.get("gate_decision"),
         "ingestion_manifest_ref": str(ingestion_paths["ingestion_manifest"]),
         "data_profile_ref": str(profile_path),
         "attachment_count": len(result.attachments),

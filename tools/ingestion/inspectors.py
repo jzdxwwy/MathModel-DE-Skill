@@ -11,12 +11,14 @@ import json
 import mimetypes
 import re
 import zipfile
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
 
 MAX_TEXT_BYTES = 1 * 1024 * 1024
 MAX_JSON_PROFILE_BYTES = 20 * 1024 * 1024
+DTYPE_SAMPLE_ROWS = 200
 
 
 def sha256_file(path: Path) -> str:
@@ -102,17 +104,116 @@ def _json_profile(path: Path) -> dict[str, Any]:
     return {"rows": len(rows), "columns": len(profile), "columns_profile": profile}
 
 
-def _xlsx_profile(path: Path) -> dict[str, Any]:
+def _infer_dtype(values: list[Any]) -> str:
+    """Coarse deterministic dtype from observed cell values. Facts only."""
+    observed = {type(v) for v in values if v is not None and str(v).strip() != ""}
+    if not observed:
+        return "unknown"
+    if observed <= {bool}:
+        return "boolean"
+    if observed <= {int, float, bool}:
+        return "number"
+    if observed <= {datetime, date}:
+        return "datetime"
+    if observed <= {str}:
+        return "string"
+    return "mixed"
+
+
+def _xlsx_profile_stdlib(path: Path) -> dict[str, Any]:
+    """Row/cell counting fallback used when openpyxl is not importable.
+
+    Without openpyxl the shared-string table cannot be resolved, so column
+    headers are unavailable. ``profile_limited`` records that fact so the caller
+    reports a risk instead of a silent pass.
+    """
     with zipfile.ZipFile(path) as z:
-        names = z.namelist()
-        sheets = [n for n in names if re.match(r"xl/worksheets/sheet\d+\.xml$", n)]
-        sheet_info = []
-        for sheet in sheets:
+        sheet_files = sorted(n for n in z.namelist() if re.match(r"xl/worksheets/sheet\d+\.xml$", n))
+        sheets = []
+        for index, sheet in enumerate(sheet_files):
             root = ET.fromstring(z.read(sheet))
-            cells = root.findall(".//{*}c")
-            rows = root.findall(".//{*}sheetData/{*}row")
-            sheet_info.append({"sheet": sheet, "rows": len(rows), "cells": len(cells)})
-        return {"sheets": sheet_info}
+            xml_rows = len(root.findall(".//{*}sheetData/{*}row"))
+            sheets.append({"name": sheet, "index": index, "rows": max(xml_rows - 1, 0), "columns": 0})
+    primary = sheets[0] if sheets else {"name": None, "index": 0, "rows": 0, "columns": 0}
+    return {
+        "rows": primary["rows"],
+        "columns": primary["columns"],
+        "columns_profile": [],
+        "primary_sheet": primary["name"],
+        "sheets": sheets,
+        "profile_limited": "openpyxl is not installed; column headers could not be read",
+    }
+
+
+def _xlsx_profile(path: Path) -> dict[str, Any]:
+    """Profile an .xlsx workbook into the shared tabular contract.
+
+    Returns the same top-level keys as ``_csv_profile``/``_json_profile``
+    (``rows``/``columns``/``columns_profile``) so the DataProfile builder can
+    actually consume the result, plus a per-sheet breakdown. The top-level shape
+    describes the first sheet in workbook order; a workbook with more than one
+    sheet is reported through ``sheets`` and must be surfaced as a data risk.
+
+    ``rows`` counts data rows excluding the header, matching ``_csv_profile``.
+    """
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        return _xlsx_profile_stdlib(path)
+
+    workbook = load_workbook(path, read_only=True, data_only=True)
+    try:
+        sheets: list[dict[str, Any]] = []
+        for index, worksheet in enumerate(workbook.worksheets):
+            header: list[str] = []
+            samples: list[list[Any]] = []
+            data_rows = 0
+            for values in worksheet.iter_rows(values_only=True):
+                if not header:
+                    if all(v is None or not str(v).strip() for v in values):
+                        continue  # leading blank rows before the header
+                    header = [
+                        str(v).strip() if v is not None and str(v).strip() else f"column_{i + 1}"
+                        for i, v in enumerate(values)
+                    ]
+                    samples = [[] for _ in header]
+                    continue
+                data_rows += 1
+                if data_rows <= DTYPE_SAMPLE_ROWS:
+                    for i in range(min(len(header), len(values))):
+                        samples[i].append(values[i])
+            sheets.append({
+                "name": worksheet.title,
+                "index": index,
+                "rows": data_rows,
+                "columns": len(header),
+                "columns_profile": [
+                    {"name": name, "dtype": _infer_dtype(sample)}
+                    for name, sample in zip(header, samples)
+                ],
+            })
+    finally:
+        workbook.close()
+
+    primary = sheets[0] if sheets else {
+        "name": None, "index": 0, "rows": 0, "columns": 0, "columns_profile": [],
+    }
+    return {
+        "rows": primary["rows"],
+        "columns": primary["columns"],
+        "columns_profile": primary["columns_profile"],
+        "primary_sheet": primary["name"],
+        "sheets": [
+            {
+                "name": s["name"],
+                "index": s["index"],
+                "rows": s["rows"],
+                "columns": s["columns"],
+                "columns_profile": s["columns_profile"],
+            }
+            for s in sheets
+        ],
+    }
 
 
 def extract_text(path: Path) -> tuple[str, str | None]:
@@ -149,6 +250,11 @@ def extract_text(path: Path) -> tuple[str, str | None]:
             return "", f"pdf extraction failed: {exc}"
     if ext in {".csv", ".tsv", ".json"}:
         return _text_file(path), None
+    if ext == ".xlsx":
+        # Profiled as a tabular workbook by _xlsx_profile. There is no separate
+        # plain-text extraction, and reporting one would be a false alarm that
+        # dilutes the warnings that actually matter.
+        return "", None
     return "", "no text extractor for this format"
 
 

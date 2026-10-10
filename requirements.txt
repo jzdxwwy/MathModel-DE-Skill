@@ -19,6 +19,11 @@ sympy
 scikit-learn
 openpyxl
 
+# Problem-statement ingestion (tools/ingestion/inspectors.py). Excel attachments
+# are profiled with openpyxl above; pypdf is what makes the 题目 PDF readable at
+# all. Without it ingestion degrades to a warning and reads 0 characters.
+pypdf
+
 # Artifact contract validation (artifacts/schemas/).
 jsonschema
 

@@ -7,6 +7,10 @@ WEIGHTS = {"fit":25,"data":15,"constraints":15,"interpretability":15,"verifiabil
 TABULAR_FORMATS = {"csv", "tsv", "xlsx", "xls", "json"}
 KEYWORDS = {
     "optimization": ("优化", "最优", "最大化", "最小化", "资源配置", "调度"),
+    # "按成本与效益把对象分成几类" is not supervised classification and not
+    # optimisation; without its own group it fell through to `classification`,
+    # whose only family is logistic regression on a labelled target.
+    "cost_benefit": ("成本", "效益", "象限"),
     "classification": ("分类", "类别", "判别", "识别"),
     "clustering": ("聚类", "分群"),
     # Comprehensive-evaluation tasks were previously unrecognisable: there was no
@@ -73,10 +77,24 @@ def select_models(problem_map: dict[str, Any], data_profile: dict[str, Any]) -> 
         task_types=classify_text(text,has_data)
         task_type=task_types[0]
         candidates=_candidates(task_type,has_data)
-        if len(candidates)<2:
-            candidates=_candidates("prediction" if has_data else "simulation",has_data) or candidates
+        if not candidates:
+            # Nothing matched the task type at all, so fall back to generic families.
+            candidates=_candidates("prediction" if has_data else "simulation",has_data)
+        elif len(candidates)<2:
+            # Keep the family that actually matched the task type first and only
+            # append generic alternatives for comparison. The previous code replaced
+            # the whole list here, which discarded the one correct family (any task
+            # type backed by a single family, e.g. cost_benefit or evaluation) and
+            # selected a generic predictor instead.
+            seen={c["model_id"] for c in candidates}
+            for extra in _candidates("prediction" if has_data else "simulation",has_data):
+                if extra["model_id"] not in seen:
+                    candidates.append(extra)
+                    seen.add(extra["model_id"])
+                if len(candidates)>=2:
+                    break
         if not candidates:
             candidates=[{"model_id":"mechanism_simulation","name":"机理/动力学模拟","score":0,"method":"python.trajectory_reconstruction","evidence":["未发现可直接匹配的高置信模型，进入人工/LLM复核"],"assumptions":["需要补充可计算机理"],"limitations":["当前选择仅为占位"],"baseline":False}]
         selected=candidates[0]
-        result.append({"task_id":task_id,"task_type":task_type,"candidates":candidates,"selected":selected,"reason":"先执行硬约束淘汰，再按七维权重选择得分最高者；D/E仅作先验。"})
+        result.append({"task_id":task_id,"task_type":task_type,"candidates":candidates,"selected":selected,"reason":"先执行硬约束淘汰，再按七维权重选择得分最高者；任务类型精确匹配的族优先保留在首位，候选不足 2 个时补充通用备选用于对照；D/E仅作先验。"})
     return {"task_types":sorted({x["task_type"] for x in result}),"tasks":result,"weights":WEIGHTS}

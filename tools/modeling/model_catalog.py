@@ -29,6 +29,7 @@ CATALOG = (
     ModelFamily("sensitivity", "敏感性分析", ("sensitivity", "risk", "evaluation"), "python.sensitivity", True, ("存在可扰动参数或输入",), ("不能单独替代主模型",), {"fit": 4,"data": 4,"constraints": 4,"interpretability": 5,"verifiability": 5,"robustness": 5,"cost": 5}),
     ModelFamily("mechanism_simulation", "机理/动力学模拟", ("mechanism", "simulation"), "python.trajectory_reconstruction", False, ("存在可计算的状态转移或机理关系",), ("机理假设和参数需验证",), {"fit": 5,"data": 3,"constraints": 5,"interpretability": 5,"verifiability": 4,"robustness": 3,"cost": 2}),
     ModelFamily("entropy_topsis", "熵权-TOPSIS 综合评价", ("evaluation",), "python.entropy_topsis", True, ("存在多实体、多指标的可比数值矩阵", "指标方向可由调用方显式声明"), ("指标选择本身是调用方决策，方法不做语义判断", "权重来自数据离散度，不表达主观偏好"), {"fit": 4,"data": 5,"constraints": 4,"interpretability": 5,"verifiability": 5,"robustness": 4,"cost": 5}),
+    ModelFamily("cost_benefit_quadrant", "成本-效益象限分类", ("cost_benefit",), "python.cost_benefit_classifier", True, ("存在可量化的成本指标与效益指标", "分类依据是成本与效益的相对高低"), ("象限阈值来自分位数，对样本构成敏感", "不解决效益归因，只使用调用方已声明的效益指标"), {"fit": 4,"data": 5,"constraints": 4,"interpretability": 5,"verifiability": 5,"robustness": 3,"cost": 5}),
 )
 
 BY_ID = {m.model_id: m for m in CATALOG}

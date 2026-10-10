@@ -97,6 +97,7 @@ MODEL_TEMPLATE: dict[str, str | None] = {
     "tree_ensemble_classification": "classification_cv.py",
     "time_series_baseline": "time_series_cv.py",
     "entropy_topsis": "entropy_topsis.py",
+    "cost_benefit_quadrant": "cost_benefit_classifier.py",
     "optimization": "optimization.py",
     "monte_carlo": "monte_carlo.py",
     "sensitivity": "sensitivity.py",
@@ -116,6 +117,9 @@ TEMPLATE_CAPABILITIES: dict[str, str] = {
     # declared indicators. Requiring `target` for them would be wrong, so they take
     # their own branch below.
     "entropy_topsis.py": "evaluation",
+    # Cost-benefit quadrants also have no dependent variable: the class is derived
+    # from the declared cost and benefit indicators, so `target` would be wrong.
+    "cost_benefit_classifier.py": "quadrant",
     # Data-driven, but driven through a CLI argument contract (--input,
     # --entity-col, ...) instead of module attributes.
     "trajectory_reconstruction.py": "argv",
@@ -162,10 +166,12 @@ def execute_tabular_template(repo_root: Path, project_dir: Path, run_dir: Path, 
     """Execute one of the existing E-type tabular templates.
 
     Runnable families: linear regression, model comparison, (tree-ensemble)
-    classification, the time-series rolling baseline and the entropy-weight +
-    TOPSIS evaluation. Native families take a `target`/`features` binding;
-    evaluation families take `entity`/`indicators`. Every other catalog family is
-    refused with an explicit reason; see MODEL_TEMPLATE and TEMPLATE_CAPABILITIES.
+    classification, the time-series rolling baseline, the entropy-weight + TOPSIS
+    evaluation and the cost-benefit quadrant labelling. Native families take a
+    `target`/`features` binding; evaluation families take `entity`/`indicators`;
+    quadrant families take `item_cols`/`cost_indicators`/`benefit_indicators`.
+    Every other catalog family is refused with an explicit reason; see
+    MODEL_TEMPLATE and TEMPLATE_CAPABILITIES.
     """
     filename = _resolve_template(model_id)
 
@@ -200,6 +206,27 @@ def execute_tabular_template(repo_root: Path, project_dir: Path, run_dir: Path, 
         if missing:
             raise InputBlocked(f"columns not found: {missing}")
         target, features = None, []
+    elif kind == "quadrant":
+        item_cols = binding.get("item_cols")
+        if not isinstance(item_cols, list) or not item_cols:
+            raise InputBlocked("item_cols must be a non-empty list; refusing to guess the item identity")
+        cost_indicators = binding.get("cost_indicators")
+        benefit_indicators = binding.get("benefit_indicators")
+        for key, specs in (("cost_indicators", cost_indicators), ("benefit_indicators", benefit_indicators)):
+            if not isinstance(specs, list) or not specs:
+                raise InputBlocked(f"{key} must be a non-empty list of {{name, direction[, ratio]}} specs")
+        referenced = {str(c) for c in item_cols}
+        for spec in [*cost_indicators, *benefit_indicators]:
+            if not isinstance(spec, dict) or not spec.get("name"):
+                raise InputBlocked("each indicator must be an object with a name")
+            referenced.update(str(c) for c in (spec.get("ratio") or [spec["name"]]))
+        for key in ("zero_cost_column", "zero_benefit_column"):
+            if binding.get(key):
+                referenced.add(str(binding[key]))
+        missing = [c for c in sorted(referenced) if c not in df.columns]
+        if missing:
+            raise InputBlocked(f"columns not found: {missing}")
+        target, features = None, []
     else:
         target = binding.get("target")
         if not target:
@@ -222,6 +249,24 @@ def execute_tabular_template(repo_root: Path, project_dir: Path, run_dir: Path, 
         module.INDICATORS = indicators
         if "aggregate" in binding and hasattr(module, "AGGREGATE"):
             module.AGGREGATE = str(binding["aggregate"])
+    elif kind == "quadrant":
+        module.ITEM_COLS = [str(c) for c in binding["item_cols"]]
+        module.COST_INDICATORS = cost_indicators
+        module.BENEFIT_INDICATORS = benefit_indicators
+        if "aggregate" in binding and hasattr(module, "AGGREGATE"):
+            module.AGGREGATE = str(binding["aggregate"])
+        for attr, key in (("COST_WEIGHTS", "cost_weights"), ("BENEFIT_WEIGHTS", "benefit_weights"), ("LABELS", "labels")):
+            if isinstance(binding.get(key), dict) and hasattr(module, attr):
+                setattr(module, attr, binding[key])
+        for attr, key, cast in (
+            ("ZERO_COST_COLUMN", "zero_cost_column", str),
+            ("ZERO_COST_VALUE", "zero_cost_value", float),
+            ("ZERO_BENEFIT_COLUMN", "zero_benefit_column", str),
+            ("ZERO_BENEFIT_VALUE", "zero_benefit_value", float),
+            ("SPLIT_QUANTILE", "split_quantile", float),
+        ):
+            if key in binding and hasattr(module, attr):
+                setattr(module, attr, cast(binding[key]))
     else:
         module.TARGET = target
         module.FEATURES = features
@@ -256,7 +301,7 @@ def execute_tabular_template(repo_root: Path, project_dir: Path, run_dir: Path, 
             if path.is_file():
                 artifacts.append({"kind": path.suffix.lstrip(".") or "file", "path": str(path), "description": "template output"})
     metrics: dict[str, Any] = {}
-    for candidate in [artifacts_dir / "model_comparison.csv", artifacts_dir / "classification_cv.csv", artifacts_dir / "run_manifest.json", artifacts_dir / "model_comparison_manifest.json", artifacts_dir / "classification_cv_manifest.json", artifacts_dir / "time_series_manifest.json", artifacts_dir / "entropy_topsis_manifest.json"]:
+    for candidate in [artifacts_dir / "model_comparison.csv", artifacts_dir / "classification_cv.csv", artifacts_dir / "run_manifest.json", artifacts_dir / "model_comparison_manifest.json", artifacts_dir / "classification_cv_manifest.json", artifacts_dir / "time_series_manifest.json", artifacts_dir / "entropy_topsis_manifest.json", artifacts_dir / "cost_benefit_manifest.json"]:
         if candidate.exists() and candidate.suffix == ".json":
             try:
                 payload = json.loads(candidate.read_text(encoding="utf-8"))

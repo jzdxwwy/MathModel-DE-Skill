@@ -51,3 +51,20 @@ def test_evaluation_tasks_reach_the_evaluation_family():
 
     assert task["task_type"] == "evaluation"
     assert "entropy_topsis" in {c["model_id"] for c in task["candidates"]}
+
+
+def test_cost_benefit_tasks_reach_the_quadrant_family():
+    """"按成本与效益把对象分成几类" is neither supervised classification nor
+    optimisation; without its own group it fell through to `classification`, whose
+    only family is logistic regression on a labelled target."""
+    problem_map = {"tasks": [{
+        "task_id": "E2",
+        "objective": "按照投入成本与效益将关键词分为黄金词、重点词、潜力词、问题词、无效词",
+        "inputs": [], "outputs": [],
+    }]}
+    data_profile = {"assets": [{"format": ".xlsx", "status": "READABLE"}]}
+
+    task = select_models(problem_map, data_profile)["tasks"][0]
+
+    assert task["task_type"] == "cost_benefit"
+    assert task["selected"]["model_id"] == "cost_benefit_quadrant"

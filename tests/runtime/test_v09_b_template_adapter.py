@@ -204,3 +204,77 @@ def test_evaluation_binding_requires_an_entity_and_known_columns(tmp_path):
             "entropy_topsis",
             {"data_path": str(source), "entity": "单元", "indicators": [{"name": "不存在"}]},
         )
+
+
+_LABELS = {
+    "low_cost_high_benefit": "黄金词",
+    "high_cost_high_benefit": "重点词",
+    "low_cost_low_benefit": "潜力词",
+    "high_cost_low_benefit": "问题词",
+    "no_cost_no_benefit": "无效词",
+}
+
+
+def _keyword_table(tmp_path):
+    rows = [
+        ("U1", "k1", 0, 0), ("U1", "k2", 0, 0), ("U1", "k3", 0, 0), ("U1", "k4", 0, 0),
+        ("U2", "k5", 100, 1000), ("U2", "k6", 80, 900),
+        ("U2", "k7", 90, 10), ("U2", "k8", 70, 20),
+        ("U3", "k9", 1, 800), ("U3", "k10", 2, 700),
+        ("U3", "k11", 1, 5), ("U3", "k12", 3, 8),
+    ]
+    source = tmp_path / "keywords.csv"
+    lines = ["单元,关键词,消费额,点击量"] + [",".join(str(v) for v in row) for row in rows]
+    source.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return source
+
+
+def test_cost_benefit_quadrant_labels_all_five_classes(tmp_path):
+    """Quadrant labelling has no dependent variable, and its zero-cost class must be
+    decided on raw values: a threshold on the normalised score would label exactly
+    one item, because min-max always puts the cheapest item at 0."""
+    source = _keyword_table(tmp_path)
+
+    result = execute_tabular_template(
+        ROOT,
+        tmp_path,
+        tmp_path / "run",
+        "cost_benefit_quadrant",
+        {
+            "data_path": str(source),
+            "item_cols": ["单元", "关键词"],
+            "cost_indicators": [{"name": "消费额", "direction": "+"}],
+            "benefit_indicators": [{"name": "点击量", "direction": "+"}],
+            "zero_cost_column": "消费额",
+            "zero_cost_value": 0.0,
+            "zero_benefit_column": "点击量",
+            "zero_benefit_value": 0.0,
+            "labels": _LABELS,
+        },
+    )
+
+    assert result.outputs[0]["value"] == "completed"
+    manifest = json.loads(
+        (tmp_path / "run" / "results" / "cost_benefit_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["parameters"]["class_counts"] == {
+        "无效词": 4, "黄金词": 2, "重点词": 2, "潜力词": 2, "问题词": 2,
+    }
+    assert manifest["parameters"]["items"] == 12
+
+
+def test_cost_benefit_quadrant_requires_item_identity(tmp_path):
+    source = _keyword_table(tmp_path)
+
+    with pytest.raises(InputBlocked, match="item_cols must be a non-empty list"):
+        execute_tabular_template(
+            ROOT,
+            tmp_path,
+            tmp_path / "run",
+            "cost_benefit_quadrant",
+            {
+                "data_path": str(source),
+                "cost_indicators": [{"name": "消费额"}],
+                "benefit_indicators": [{"name": "点击量"}],
+            },
+        )

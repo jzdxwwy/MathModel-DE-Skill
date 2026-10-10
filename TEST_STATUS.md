@@ -8,18 +8,19 @@
 | 项目 | 结果 |
 | --- | --- |
 | 命令 | `python -m pytest -q`（仓库根目录） |
-| 结果 | **154 passed, 0 failed, 0 errors** |
-| 耗时 | 约 4 秒 |
+| 结果 | **160 passed, 0 failed, 0 errors** |
+| 耗时 | 约 5 秒 |
 | 基线（首轮修复前） | 3 failed, 138 passed |
 | 执行日期 | 2026-10-08 |
-| 仓库版本 | `main` @ `30ebd74` |
+| 仓库版本 | `main` @ `8985283` |
 | 解释器 | CPython 3.14.6 (Windows x64) |
 | GitHub Actions | run #57（commit `2e216a8`）**success**，`set -o pipefail` 已生效 |
 
 裸 `pytest`（不带 `-m`）同样可收集全部用例——这依赖本仓库新增的 `pytest.ini`。
 
 > 用例数随后续修复增长：141（首轮）→ 145（ingestion 真实附件修复）→ 147（模型选择/分类修复）
-> → 151（阶段 04 真实附件可执行 + 玩具模板拒绝）→ 154（综合评价模型族）。
+> → 151（阶段 04 真实附件可执行 + 玩具模板拒绝）→ 154（综合评价模型族）
+> → 157（成本-效益象限分类）→ 160（GBK/GB18030 编码处理）。
 > 各轮修复内容见本文第 2–3 节、[`benchmarks/CAPABILITY_PROBE_2026DE.md`](benchmarks/CAPABILITY_PROBE_2026DE.md)
 > 与 [`benchmarks/STAGE_PROBE_2026E.md`](benchmarks/STAGE_PROBE_2026E.md)。
 

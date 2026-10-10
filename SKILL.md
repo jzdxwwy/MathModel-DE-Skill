@@ -770,9 +770,9 @@ V4.1 新增 `tools/benchmark/benchmark_runner.py`、Benchmark schemas、benchmar
 前面各版本小节中"本次会话没有实际运行 pytest"是**当时会话**的记录（历史保持原样）。现在已有真实执行证据：
 
 - 命令：`python -m pytest -q`（仓库根目录）
-- 结果：**151 passed, 0 failed, 0 errors**，耗时约 4 秒（141 → 145 → 147 → 151，随后续修复增长）
+- 结果：**154 passed, 0 failed, 0 errors**，耗时约 4 秒（141 → 145 → 147 → 151 → 154，随后续修复增长）
 - 修复前基线：3 failed, 138 passed
-- 解释器：CPython 3.14.6 (Windows x64)，仓库版本 `main` @ `f2af96e`
+- 解释器：CPython 3.14.6 (Windows x64)，仓库版本 `main` @ `30ebd74`
 - 裸 `pytest`（不带 `-m`）同样可收集全部用例
 
 本次实测同时修复了 3 个真实缺陷与 4 个工程/CI 缺口，明细见根目录 `TEST_STATUS.md`：
@@ -892,3 +892,50 @@ time_series_baseline  sheet="Sheet2"  time_col="日期"  target="新注册数"
 该结果只是 2026E **问题 4 的时序基线**，仅覆盖 `新注册数` 一列；
 策略诊断、关键词五分类、逐日投放优化三个子问题**仍未求解**。
 阶段 05–08 在真实数据上**仍完全未执行**。
+
+
+## 56. V4.3：综合评价模型族（熵权-TOPSIS）（2026-10-08）
+
+阶段 04 打通后，瓶颈变成"目录里没有 2026E 需要的模型族"。本轮补最独立、最可验证的一条。
+
+### 56.1 新增能力
+
+- `model_selector.KEYWORDS` 新增 `evaluation` 组。此前**根本没有"评价"这一组**，
+  2026E 问题 1（从设计质量与创意、关键词管理与运用、出价策略与预算、投放策略与时间
+  四方面评价合理性）只能被误判成 `time_series`，目录里也没有任何评价族可达。
+- `model_catalog` 新增 `entropy_topsis` 族，`task_types=("evaluation",)`，
+  工具 `python.entropy_topsis`，并附假设与局限。
+- 新增 `05_python/templates/entropy_topsis.py`：熵权法 + TOPSIS，完全数据驱动。
+- `template_adapter` 新增 `evaluation` 绑定分支：评价任务**没有因变量**，
+  强行走 `target/features` 契约是错的；改为 `entity` + `indicators`，并 fail closed。
+- 新增 `knowledge/评价方法_熵权TOPSIS.md`（`knowledge/` 此前只有 2 个文件）。
+
+### 56.2 两条方法学要求
+
+1. **指标方向必须显式声明**（`+` / `-`），不从列名推断。方向搞反不会报错，只会让排序失真。
+2. **比率型指标先聚合再相除**：`CTR = Σ点击量 / Σ展现量`，而不是
+   `mean(每日点击量 / 每日展现量)`。后者会让展现量极小的那些天主导结果，
+   是对数据的隐性加权。初版模板犯了这个错，已修正。
+
+零方差指标权重记 0 并列入 `zero_variance_indicators`；全部零方差时直接失败，
+不输出无意义排名。权重、方向、指标定义、源列与输入哈希全部写入 manifest。
+
+### 56.3 实测
+
+真实 `benchmarks/2026E/inputs/附件1.xlsx` Sheet1（2627 行）：
+
+```
+task_type : evaluation  ->  selected : entropy_topsis
+entity=推广单元ID  aggregate=sum  entities=12
+weights : CTR 0.5453 | 首位展现占比 0.2889 | 上方位点击占比 0.0795 | 单次点击成本 0.0863
+-> canonical ResultBundle: status=VALIDATED, schema valid=True
+```
+
+换粒度（`entity=方案ID`，5 个方案）同样可用。其中方案 `495403620` 的 `closeness = 1.0`、
+`d_plus = 0.0`，经核对它在四个指标上**同时最优**，是正确结果而非缺陷。
+
+### 56.4 边界
+
+这**不是**问题 1 的答案。问题 1 还要求"投放效益随时间的变化规律与假日效应"，
+且"设计质量与创意"等维度到具体指标的映射**本身是需要论证的建模决策**。
+本轮交付的是可追溯的评价**基线**，不是结论。

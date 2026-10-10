@@ -22,26 +22,34 @@
     {
       "attachment_id": "attachment_2_result1",
       "required": true,
-      "status": "MISSING",
-      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2026D\\inputs\\附件2\\result1.xlsx"
+      "status": "PRESENT",
+      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2026D\\inputs\\附件2\\result1.xlsx",
+      "sha256": "6657970f5ead42a0ddaacc29f6d3f0e25538661446a1b6672491a2d83fdd664c",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     },
     {
       "attachment_id": "attachment_2_result2",
       "required": true,
-      "status": "MISSING",
-      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2026D\\inputs\\附件2\\result2.xlsx"
+      "status": "PRESENT",
+      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2026D\\inputs\\附件2\\result2.xlsx",
+      "sha256": "53f6feb7bbf0bdfb8fbe15af35e0759a45933120928a05231fc8fe3569fefb8e",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     },
     {
       "attachment_id": "attachment_2_result3",
       "required": true,
-      "status": "MISSING",
-      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2026D\\inputs\\附件2\\result3.xlsx"
+      "status": "PRESENT",
+      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2026D\\inputs\\附件2\\result3.xlsx",
+      "sha256": "6e7072651e204fa07e0dad2b6ddd1ceb72d74f41905e5d2ba44deea0456feead",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     },
     {
       "attachment_id": "attachment_2_result4",
       "required": true,
-      "status": "MISSING",
-      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2026D\\inputs\\附件2\\result4.xlsx"
+      "status": "PRESENT",
+      "path": "D:\\MathModel-DE-Skill\\benchmarks\\2026D\\inputs\\附件2\\result4.xlsx",
+      "sha256": "95e45e755e9fc9e30d45fa0cd4c4cc638a94e4d5c7201f09828ed7fdcaef75b9",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     }
   ]
 }

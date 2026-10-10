@@ -2,15 +2,17 @@
   "artifact_type": "BenchmarkRun",
   "schema_version": "1.0",
   "benchmark_id": "CUMCM-2026D",
-  "status": "BLOCKED",
+  "status": "READY",
   "input_manifest_ref": "benchmark-input-manifest.json",
   "run_id": null,
   "stages": [
     {
       "stage_id": "B01_INPUT_READINESS",
-      "status": "BLOCKED",
-      "message": "Required benchmark attachments are missing.",
+      "status": "READY",
+      "message": "Required benchmark attachments are present.",
       "input_refs": [
+        "problem_statement",
+        "attachment_1",
         "attachment_2_result1",
         "attachment_2_result2",
         "attachment_2_result3",

@@ -1,7 +1,7 @@
 # 2026D：时频冲突检测与消解
 
 > Benchmark ID `CUMCM-2026D`　类型 D（组合优化／机理类）
-> 状态 **B01_INPUT_READINESS = BLOCKED（附件 2 缺失）**
+> 状态 **B01_INPUT_READINESS = READY（尚未求解）**
 
 ## 1. 题目
 
@@ -35,10 +35,10 @@
 | --- | --- | --- | --- | --- |
 | `problem_statement` | `inputs/D题.pdf` | 442,550 B | PRESENT | `04945c2db24cd6cb659de55e6a23ddd43553ec61bc1c7741010a7eac220712a9` |
 | `attachment_1` | `inputs/附件1.xlsx` | 16,067 B | PRESENT | `b7f905cd2629f9a85b47db352be503404a0cd5b8f70b9209aafdf7e262f3449c` |
-| `attachment_2_result1` | `inputs/附件2/result1.xlsx` | — | **MISSING** | — |
-| `attachment_2_result2` | `inputs/附件2/result2.xlsx` | — | **MISSING** | — |
-| `attachment_2_result3` | `inputs/附件2/result3.xlsx` | — | **MISSING** | — |
-| `attachment_2_result4` | `inputs/附件2/result4.xlsx` | — | **MISSING** | — |
+| `attachment_2_result1` | `inputs/附件2/result1.xlsx` | 10,135 B | PRESENT | `6657970f5ead42a0ddaacc29f6d3f0e25538661446a1b6672491a2d83fdd664c` |
+| `attachment_2_result2` | `inputs/附件2/result2.xlsx` | 9,832 B | PRESENT | `53f6feb7bbf0bdfb8fbe15af35e0759a45933120928a05231fc8fe3569fefb8e` |
+| `attachment_2_result3` | `inputs/附件2/result3.xlsx` | 8,362 B | PRESENT | `6e7072651e204fa07e0dad2b6ddd1ceb72d74f41905e5d2ba44deea0456feead` |
+| `attachment_2_result4` | `inputs/附件2/result4.xlsx` | 9,854 B | PRESENT | `95e45e755e9fc9e30d45fa0cd4c4cc638a94e4d5c7201f09828ed7fdcaef75b9` |
 
 ## 4. 数据结构（由本项目 ingestion 实际读出）
 
@@ -60,40 +60,42 @@
 | `result3.xlsx` | 新增用频装备序号, 调整后频段区间, 调整后时间区间 |
 | `result4.xlsx` | 用频装备编号, 调整后频段范围, 调整后时间区间, 调整后间隔时长, 是否撤销用频计划 |
 
-## 6. 为什么当前是 BLOCKED
+## 6. 附件 2 的来源与校验
 
 题目要求结果"保存到文件 result*.xlsx（模板文件见附件 2）"，因此 **附件 2 的 4 个模板是本 benchmark
-的必需输入**。本地工作区里与 result*.xlsx 同名同结构的文件**只有参考解填好的结果**
-（`problem_D/results/result1.xlsx` 有 238 组冲突对，`result2/4.xlsx` 各 114 条调整），
-**不存在任何空白模板**：
+的必需输入**。
 
-| 候选文件 | 非空行 | 判定 |
-| --- | --- | --- |
-| `problem_D/results/result1.xlsx` | 238 | 参考解**输出**，不是模板 |
-| `problem_D/results/result2.xlsx` | 114 | 参考解**输出**，不是模板 |
-| `problem_D/results/result3.xlsx` | 90 | 参考解**输出**，不是模板 |
-| `problem_D/results/result4.xlsx` | 114 | 参考解**输出**，不是模板 |
+**此前本 benchmark 是 BLOCKED 的**，原因是当时本地与 result*.xlsx 同名同结构的文件
+**只有参考解填好的结果**（`problem_D/results/result1.xlsx` 有 238 组冲突对，`result2/4.xlsx` 各 114 条调整），
+不存在任何空白模板。把参考解的输出改个名字当模板塞进来等于**伪造 benchmark 输入**，
+所以那 4 个模板被声明为 `required` 并保持 MISSING，让就绪检查 fail closed。
 
-把参考解的输出改个名字当模板塞进来，等于**伪造 benchmark 输入**——这正是本项目要防的事。
-所以这 4 个模板被显式声明为 `required` 且当前 `MISSING`，让就绪检查 **fail closed**。
+**现已从官方附件包补齐**（来源：`D:\0ai\数学建模论文\2026\D题\附件\附件2\`），
+入库前逐个核对过：
 
-**补全方式（需人工确认来源）**：拿到官方附件 2 的空白模板后放入 `inputs/附件2/`，
-再重跑下面的命令即可转 READY。题目附录已完整描述每张表的列含义，但**由我们自己照附录造模板
-属于构造输入**，必须先经确认并在文档中标注来源，不得默默进行。
+| 文件 | 非空行 | 表头 | 判定 |
+| --- | --- | --- | --- |
+| `result1.xlsx` | **1** | 序号, 冲突装备1, 冲突设备2 | 空白模板 |
+| `result2.xlsx` | **1** | 用频装备编号, 调整后频段区间, 调整后时间区间, 是否撤销用频计划 | 空白模板 |
+| `result3.xlsx` | **1** | 新增用频装备序号, 调整后频段区间, 调整后时间区间 | 空白模板 |
+| `result4.xlsx` | **1** | 用频装备编号, 调整后频段范围, 调整后时间区间, 调整后间隔时长, 是否撤销用频计划 | 空白模板 |
+
+四个文件**都只有一行表头**，与题目附录逐字一致，确认是空白模板而非任何人填好的结果；
+复制时逐个 SHA256 与源文件比对为 MATCH。
 
 ## 7. 复现输入就绪证据
 
 ```bash
 python benchmarks/2026D/run_readiness.py
-# CUMCM-2026D: BLOCKED (gate=NOT_RUN)
-#   B01_INPUT_READINESS: BLOCKED - Required benchmark attachments are missing.
-#     missing: ['attachment_2_result1', 'attachment_2_result2', 'attachment_2_result3', 'attachment_2_result4']
+# CUMCM-2026D: READY (gate=NOT_RUN)
+#   B01_INPUT_READINESS: READY - Required benchmark attachments are present.
 ```
 
-该脚本在未 READY 时返回非 0 退出码，这是刻意的。
+会重新生成 `benchmark-input-manifest.json` 与 `benchmark-run.json`。
+`gate_decision` 恒为 `NOT_RUN`：B01 只检查输入是否齐全并固定哈希，**不表示题目已被求解**。
 
 ## 8. 当前状态与边界
 
-- ✅ 题目与附件 1 已入库并固定哈希。
-- ❌ 附件 2 缺失，**B01 未通过**，因此本 benchmark **不具备开工条件**。
-- ⬜ 即便补齐附件 2，题目识别、建模、计算、验证、论文也**均未执行**。
+- ✅ 输入就绪：6 个必需文件全部存在且已用 SHA256 固定。
+- ⬜ 题目识别、数据体检、模型选择、建模计算、结果验证、可视化、论文撰写：**均未执行**。
+- 本 benchmark **目前没有任何求解结果**，`READY` 只描述输入。
